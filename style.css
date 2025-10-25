@@ -1,99 +1,209 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 20px;
-    background-color: #f4f4f9;
+:root {
+    --primary-color: #007bff;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --background-light: #f4f7f6;
+    --card-background: #ffffff;
+    --border-color: #e0e0e0;
+    --font-color: #333;
 }
 
-header, main {
-    max-width: 900px;
-    margin: 0 auto;
-    background: #fff;
+body {
+    font-family: 'Roboto', Arial, sans-serif;
+    margin: 0;
     padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    background-color: var(--background-light);
+    color: var(--font-color);
 }
 
 header {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 30px;
 }
 
-form, .controls, #lista-documentos {
-    margin-bottom: 30px;
+h1 {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+main {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Estilo de Cartão (Card) */
+.card {
+    background: var(--card-background);
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 25px;
+    border: 1px solid var(--border-color);
+}
+
+/* Campos de Formulário */
+fieldset {
+    border: 1px solid var(--border-color);
     padding: 15px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    margin-bottom: 20px;
+    border-radius: 6px;
+}
+
+legend {
+    font-weight: 700;
+    color: var(--primary-color);
+    padding: 0 10px;
+}
+
+.field-group {
+    margin-bottom: 15px;
 }
 
 label {
     display: block;
-    margin-top: 10px;
-    font-weight: bold;
+    margin-bottom: 5px;
+    font-weight: 700;
+    font-size: 0.9em;
 }
 
-input[type="text"], input[type="url"], input[type="number"], input[type="date"], select {
+input[type="text"], 
+input[type="url"], 
+input[type="number"], 
+input[type="date"], 
+select {
     width: 100%;
-    padding: 8px;
-    margin-top: 5px;
-    margin-bottom: 15px;
-    box-sizing: border-box;
-    border: 1px solid #ddd;
+    padding: 10px;
+    border: 1px solid #ccc;
     border-radius: 4px;
+    box-sizing: border-box;
+    transition: border-color 0.3s;
 }
 
-button {
+input:focus, select:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+.inline-fields {
+    display: flex;
+    gap: 20px;
+}
+
+.inline-fields .field-group {
+    flex-grow: 1;
+}
+
+/* Botões */
+.btn {
     padding: 10px 15px;
-    margin-right: 10px;
     border: none;
-    border-radius: 5px;
+    border-radius: 4px;
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 700;
+    transition: background-color 0.3s;
+    text-transform: uppercase;
+    font-size: 0.9em;
 }
 
-#save-btn { background-color: #4CAF50; color: white; }
-#clear-form-btn { background-color: #f44336; color: white; }
-.action-btn { background-color: #2196F3; color: white; margin-left: 5px; }
+.primary-btn { background-color: var(--primary-color); color: white; }
+.success-btn { background-color: var(--success-color); color: white; }
+.danger-btn { background-color: var(--danger-color); color: white; }
+.action-btn { background-color: #6c757d; color: white; margin-left: 5px; }
 
-/* Estilo da lista de documentos */
+.primary-btn:hover { background-color: #0056b3; }
+.success-btn:hover { background-color: #1e7e34; }
+.danger-btn:hover { background-color: #bd2130; }
+
+.full-width-btn {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.form-actions .btn {
+    flex-grow: 1;
+}
+
+/* Tabela de Itens */
+#items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 0.9em;
+}
+
+#items-table th, #items-table td {
+    border: 1px solid var(--border-color);
+    padding: 10px;
+}
+
+#items-table th {
+    background-color: #f8f9fa;
+    color: var(--font-color);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.item-list-section h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.total-display {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: var(--success-color);
+    padding: 5px 10px;
+    border-radius: 4px;
+    background-color: #e9f7eb;
+}
+
+/* Alinhamento de texto na tabela */
+.text-right {
+    text-align: right;
+}
+
+/* Lista de Documentos Salvos */
 #document-list {
     list-style: none;
     padding: 0;
 }
 
 #document-list li {
-    background: #f9f9f9;
+    background: #f9f9fb;
     padding: 15px;
-    border-bottom: 1px solid #eee;
-    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
     border-radius: 4px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 #document-list li .info {
     flex-grow: 1;
+    font-size: 0.95em;
 }
 
-#document-list li .actions button {
-    margin-top: 0;
+#document-list li .actions {
+    min-width: 350px;
+    text-align: right;
 }
 
-/* NOVO: Estilos da tabela de itens */
-#items-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
-}
-
-#items-table th, #items-table td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
-}
-
-#items-table th {
-    background-color: #f2f2f2;
-    font-weight: bold;
+.logo-preview {
+    max-width: 100px;
+    max-height: 100px;
+    margin-top: 10px;
+    border: 1px dashed var(--border-color);
+    padding: 5px;
+    display: inline-block;
 }

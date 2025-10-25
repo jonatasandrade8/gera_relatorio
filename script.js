@@ -2,10 +2,9 @@
 const LOCAL_STORAGE_KEY = 'document_generator_data';
 
 // VARIÁVEIS GLOBAIS
-let currentFormItems = []; // Itens temporários do formulário atual
-let currentLogoData = ''; // Base64 da imagem enviada ou URL
+let currentFormItems = []; 
+let currentLogoData = ''; 
 
-// Gera a string de data e hora atual
 function formatarDataHoraAtual() {
     const now = new Date();
     const data = now.toLocaleDateString('pt-BR');
@@ -13,23 +12,41 @@ function formatarDataHoraAtual() {
     return `${data} às ${hora}`;
 }
 
-// Carrega os documentos do LocalStorage
 function getDocuments() {
     const docs = localStorage.getItem(LOCAL_STORAGE_KEY);
     return docs ? JSON.parse(docs) : [];
 }
 
-// Salva o array de documentos no LocalStorage
 function saveDocuments(documents) {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(documents));
 }
 
-// Lógica para ler e exibir o arquivo de imagem
+// ==================== LÓGICA DE PERSONALIZAÇÃO DE FORMULÁRIO ====================
+
+const DESTINATARIO_LEGENDS = {
+    'NOTA_SERVICO': 'Dados do Contratante',
+    'ORDEM_SERVICO': 'Dados do Contratante',
+    'REQUISICAO_COMPRA': 'Dados do Requisitante/Destinatário',
+    'NOTA_ENTREGA': 'Dados do Recebedor da Mercadoria'
+};
+
+function updateFormFields() {
+    const tipo = document.getElementById('tipo-documento').value;
+    const destinatarioLegend = document.getElementById('destinatario-legend');
+
+    // Atualiza a legenda para o tipo de documento
+    destinatarioLegend.textContent = DESTINATARIO_LEGENDS[tipo] || 'Dados do Cliente/Parceiro';
+}
+
+document.getElementById('tipo-documento').addEventListener('change', updateFormFields);
+
+// ==================== LÓGICA DE LOGO BASE64/URL ====================
+
 function handleLogoFileUpload(event) {
     const file = event.target.files[0];
     const preview = document.getElementById('logo-preview');
     preview.innerHTML = '';
-    currentLogoData = ''; // Limpa o estado anterior
+    currentLogoData = '';
 
     if (file) {
         if (!file.type.startsWith('image/')) {
@@ -40,9 +57,8 @@ function handleLogoFileUpload(event) {
 
         const reader = new FileReader();
         reader.onload = function(e) {
-            currentLogoData = e.target.result; // Armazena o Base64
+            currentLogoData = e.target.result;
             
-            // Exibe a prévia
             const img = document.createElement('img');
             img.src = currentLogoData;
             img.style.maxWidth = '100%';
@@ -53,18 +69,21 @@ function handleLogoFileUpload(event) {
     }
 }
 
-// Inicializa ao carregar a página
+// ==================== INICIALIZAÇÃO ====================
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('data-hora-atual').value = formatarDataHoraAtual();
     document.getElementById('logo-file').addEventListener('change', handleLogoFileUpload);
+    
+    // Inicializa a personalização dos campos
+    updateFormFields(); 
+    
     renderDocumentList();
     updateItemsTable();
 });
 
 
-// ==================== FUNÇÕES DE GERENCIAMENTO DE ITENS (ADICIONAR/REMOVER) ====================
+// ==================== FUNÇÕES DE GERENCIAMENTO DE ITENS (TABELA DINÂMICA) ====================
 
-// 1. Adicionar Item
 document.getElementById('add-item-btn').addEventListener('click', addItem);
 
 function addItem() {
@@ -77,7 +96,7 @@ function addItem() {
     const preco = parseFloat(precoInput.value);
 
     if (!produto || isNaN(quantidade) || quantidade <= 0 || isNaN(preco) || preco <= 0) {
-        alert("Por favor, preencha todos os campos do item corretamente (quantidade e preço devem ser positivos).");
+        alert("Por favor, preencha todos os campos do item corretamente.");
         return;
     }
 
@@ -93,21 +112,19 @@ function addItem() {
     currentFormItems.push(newItem);
     updateItemsTable();
 
-    // Limpa campos do item
+    // Limpa campos do item para próxima inserção
     produtoInput.value = '';
     quantidadeInput.value = '1';
     precoInput.value = '0.01';
     produtoInput.focus();
 }
 
-// 2. Remover Item
 function removeItem(index) {
     if (!confirm('Tem certeza que deseja remover este item?')) return;
     currentFormItems.splice(index, 1);
     updateItemsTable();
 }
 
-// 3. Renderizar Tabela e Calcular Total
 function updateItemsTable() {
     const tableBody = document.querySelector('#items-table tbody');
     const totalDisplay = document.getElementById('grand-total-display');
@@ -115,7 +132,7 @@ function updateItemsTable() {
     let grandTotal = 0;
 
     if (currentFormItems.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Nenhum item adicionado.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #6c757d;">Nenhum item adicionado.</td></tr>';
         totalDisplay.textContent = 'R$ 0,00';
         return;
     }
@@ -124,14 +141,28 @@ function updateItemsTable() {
         grandTotal += parseFloat(item.subtotal);
 
         const row = tableBody.insertRow();
+        
+        const subtotalFormatado = parseFloat(item.subtotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        const precoFormatado = parseFloat(item.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
         row.innerHTML = `
             <td>${item.produto}</td>
-            <td>${item.quantidade}</td>
-            <td>R$ ${parseFloat(item.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-            <td>R$ ${parseFloat(item.subtotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-            <td><button type="button" class="action-btn" style="background-color: #d9534f;" onclick="removeItem(${index})">Remover</button></td>
+            <td class="text-right">${item.quantidade}</td>
+            <td class="text-right">R$ ${precoFormatado}</td>
+            <td class="text-right">R$ ${subtotalFormatado}</td>
+            <td><button type="button" class="btn danger-btn action-btn" onclick="removeItem(${index})">Remover</button></td>
         `;
     });
+    
+    // Adiciona a linha de total na tabela
+    const totalRow = tableBody.insertRow();
+    totalRow.classList.add('total-row');
+    totalRow.innerHTML = `
+        <td colspan="3" class="text-right" style="font-weight: 700; background-color: #f8f9fa;">TOTAL GERAL:</td>
+        <td class="text-right total-cell" style="font-weight: 700; background-color: #e9f7eb; color: var(--success-color);">R$ ${grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+        <td></td>
+    `;
+
 
     totalDisplay.textContent = `R$ ${grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 }
@@ -139,7 +170,7 @@ function updateItemsTable() {
 
 // ==================== FUNÇÕES CRUD (CREATE, READ, UPDATE, DELETE) ====================
 
-// CREATE e UPDATE (Salvar Documento) - ATUALIZADA para Logo
+// CREATE e UPDATE (Salvar Documento)
 document.getElementById('document-form').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -151,22 +182,27 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
     const form = e.target;
     const documentId = form.dataset.editingId;
     
-    // Calcula o total
     const total = currentFormItems.reduce((sum, item) => sum + parseFloat(item.subtotal), 0).toFixed(2);
-
-    // TRATAMENTO DA LOGO: Prioriza Base64, senão usa URL
     const logoUrl = document.getElementById('logo-url').value;
-    let finalLogoData = currentLogoData || logoUrl || '';
+    const finalLogoData = currentLogoData || logoUrl || '';
     
     const newDocument = {
         id: documentId ? documentId : Date.now().toString(),
         tipo: document.getElementById('tipo-documento').value,
         dataHoraAtual: document.getElementById('data-hora-atual').value,
-        logo: finalLogoData, // Salva Base64 ou URL
+        logo: finalLogoData,
+        
+        // Dados do Emissor/Prestador
         nomePrestador: document.getElementById('nome-prestador').value,
         nomeEmpresa: document.getElementById('nome-empresa').value,
         cnpj: document.getElementById('cnpj').value,
         dataServico: document.getElementById('data-servico').value,
+        
+        // Novos Dados do Destinatário/Contratante
+        nomeDestinatario: document.getElementById('nome-destinatario').value,
+        empresaDestinatario: document.getElementById('empresa-destinatario').value,
+        docDestinatario: document.getElementById('doc-destinatario').value,
+        
         items: [...currentFormItems],
         total: total,
         formaPagamento: document.getElementById('forma-pagamento').value,
@@ -191,14 +227,15 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
     form.reset(); 
     document.getElementById('data-hora-atual').value = formatarDataHoraAtual(); 
     
-    // LIMPA E ATUALIZA O ESTADO
+    // LIMPA O ESTADO
     currentFormItems = [];
     currentLogoData = '';
-    document.getElementById('logo-preview').innerHTML = ''; // Limpa preview da logo
+    document.getElementById('logo-preview').innerHTML = '';
     updateItemsTable();
+    updateFormFields(); // Atualiza a legenda
 });
 
-// UPDATE (Carregar dados para Edição) - ATUALIZADA para Logo
+// UPDATE (Carregar dados para Edição)
 function editDocument(id) {
     const documents = getDocuments();
     const doc = documents.find(d => d.id === id);
@@ -218,42 +255,45 @@ function editDocument(id) {
     document.getElementById('forma-pagamento').value = doc.formaPagamento;
     document.getElementById('prazo-pagamento').value = doc.prazoPagamento;
     
-    // TRATAMENTO DA LOGO (CARREGAMENTO)
-    document.getElementById('logo-file').value = ''; // Limpa input File
-    currentLogoData = ''; // Zera o Base64
-
+    // Novos Campos
+    document.getElementById('nome-destinatario').value = doc.nomeDestinatario;
+    document.getElementById('empresa-destinatario').value = doc.empresaDestinatario;
+    document.getElementById('doc-destinatario').value = doc.docDestinatario;
+    
+    // LOGO
+    document.getElementById('logo-file').value = '';
+    currentLogoData = '';
     const preview = document.getElementById('logo-preview');
     preview.innerHTML = '';
 
     if (doc.logo) {
         if (doc.logo.startsWith('data:image')) {
-            // Se for Base64, exibe prévia e armazena na variável global
             currentLogoData = doc.logo;
             const img = document.createElement('img');
             img.src = currentLogoData;
             img.style.maxWidth = '100%';
             img.style.maxHeight = '100px';
             preview.appendChild(img);
-            document.getElementById('logo-url').value = ''; // Limpa o campo URL
+            document.getElementById('logo-url').value = ''; 
         } else {
-            // Se for URL, preenche o campo URL
             document.getElementById('logo-url').value = doc.logo;
         }
     }
 
-    // CARREGA ITENS
+    // ITENS
     currentFormItems = doc.items || [];
     updateItemsTable();
 
-    // Seta o estado de edição
+    // Seta estado de edição e personaliza
     const form = document.getElementById('document-form');
     form.setAttribute('data-editing-id', id);
     document.getElementById('save-btn').textContent = 'Atualizar Documento (U)';
+    updateFormFields(); // Atualiza a legenda do destinatário
     
     window.scrollTo(0, 0); 
 }
 
-// Limpar Formulário - ATUALIZADA
+// Limpar Formulário
 document.getElementById('clear-form-btn').addEventListener('click', function() {
     const form = document.getElementById('document-form');
     form.reset();
@@ -266,10 +306,11 @@ document.getElementById('clear-form-btn').addEventListener('click', function() {
     currentLogoData = '';
     document.getElementById('logo-preview').innerHTML = '';
     updateItemsTable();
+    updateFormFields(); // Atualiza a legenda
 });
 
-// READ (Renderizar a Lista de Documentos) - Não precisa de mudanças.
 function renderDocumentList() {
+    // Código para renderizar a lista de documentos (sem alterações na lógica)
     const list = document.getElementById('document-list');
     list.innerHTML = '';
     const documents = getDocuments();
@@ -295,19 +336,18 @@ function renderDocumentList() {
                 <strong>${title} #${doc.id.substring(8)}</strong> - ${doc.nomeEmpresa} - R$ ${parseFloat(doc.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
             <div class="actions">
-                <button class="action-btn" onclick="editDocument('${doc.id}')">Editar (U)</button>
-                <button class="action-btn" onclick="deleteDocument('${doc.id}')">Excluir (D)</button>
-                <button class="action-btn" onclick="generateAndDownloadPDF('${doc.id}')">Baixar PDF</button>
-                <button class="action-btn" onclick="shareDocument('${doc.id}', 'whatsapp')">WhatsApp</button>
-                <button class="action-btn" onclick="downloadReportTXT('${doc.id}')">Baixar TXT</button>
-                <button class="action-btn" onclick="shareDocument('${doc.id}', 'email')">Email</button>
+                <button class="btn primary-btn action-btn" onclick="editDocument('${doc.id}')">Editar (U)</button>
+                <button class="btn danger-btn action-btn" onclick="deleteDocument('${doc.id}')">Excluir (D)</button>
+                <button class="btn success-btn action-btn" onclick="generateAndDownloadPDF('${doc.id}')">Baixar PDF</button>
+                <button class="btn primary-btn action-btn" onclick="shareDocument('${doc.id}', 'whatsapp')">WhatsApp</button>
+                <button class="btn action-btn" style="background-color: #6c757d;" onclick="downloadReportTXT('${doc.id}')">Baixar TXT</button>
+                <button class="btn primary-btn action-btn" onclick="shareDocument('${doc.id}', 'email')">Email</button>
             </div>
         `;
         list.appendChild(li);
     });
 }
 
-// DELETE (Excluir Documento)
 function deleteDocument(id) {
     if (!confirm('Tem certeza que deseja excluir este documento?')) return;
 
@@ -319,26 +359,38 @@ function deleteDocument(id) {
 }
 
 
-// ==================== FUNÇÕES DE EXPORTAÇÃO E COMPARTILHAMENTO - ATUALIZADAS ====================
+// ==================== FUNÇÕES DE EXPORTAÇÃO E COMPARTILHAMENTO ====================
 
+/**
+ * @description Gera o conteúdo de texto para o compartilhamento, incluindo Contratante/Recebedor.
+ */
 function generateShareText(doc) {
     const docTitle = doc.tipo.toUpperCase().replace(/_/g, ' ');
     const idCurto = doc.id.substring(8);
     const prazo = doc.prazoPagamento ? `Até ${doc.prazoPagamento}` : 'À vista';
     const totalFormatado = parseFloat(doc.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    const destinatarioLegend = DESTINATARIO_LEGENDS[doc.tipo];
 
     let shareText = `*== [${docTitle}] #${idCurto} ==*\n`;
     shareText += `*Emitido em:* ${doc.dataHoraAtual}\n\n`;
     
-    shareText += `*[ DADOS DO PRESTADOR/CLIENTE ]*\n`;
-    shareText += `Nome da Empresa: ${doc.nomeEmpresa}\n`;
-    shareText += `CNPJ: ${doc.cnpj}\n`;
-    shareText += `Prestador/Solicitante: ${doc.nomePrestador}\n`;
+    // Dados do Emissor
+    shareText += `*[ DADOS DO EMISSOR ]*\n`;
+    shareText += `Empresa: ${doc.nomeEmpresa}\n`;
+    shareText += `CNPJ/CPF: ${doc.cnpj}\n`;
+    shareText += `Emissor: ${doc.nomePrestador}\n`;
     shareText += `Data do Serviço/Requisição: ${doc.dataServico}\n\n`;
     
+    // Dados do Destinatário/Contratante
+    shareText += `*[ ${destinatarioLegend.toUpperCase()} ]*\n`;
+    shareText += `Nome: ${doc.nomeDestinatario}\n`;
+    if (doc.empresaDestinatario) {
+        shareText += `Empresa: ${doc.empresaDestinatario}\n`;
+    }
+    shareText += `CNPJ/CPF: ${doc.docDestinatario}\n\n`;
+
+    // Lista de Itens
     shareText += `*[ ITENS/SERVIÇOS ]*\n`;
-    
-    // Constrói a lista de itens
     doc.items.forEach((item, index) => {
         const preco = parseFloat(item.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         const subtotal = parseFloat(item.subtotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -348,6 +400,7 @@ function generateShareText(doc) {
 
     shareText += `\n*TOTAL GERAL: R$ ${totalFormatado}*\n\n`;
     
+    // Condições
     shareText += `*[ CONDIÇÕES ]*\n`;
     shareText += `Forma de Pagamento: ${doc.formaPagamento}\n`;
     shareText += `Prazo de Pagamento: ${prazo}\n`;
@@ -355,8 +408,6 @@ function generateShareText(doc) {
     return shareText.replace(/\*\*/g, '*');
 }
 
-
-// Compartilhar (WhatsApp/Email)
 function shareDocument(id, method) {
     const documents = getDocuments();
     const doc = documents.find(d => d.id === id);
@@ -374,9 +425,6 @@ function shareDocument(id, method) {
     }
 }
 
-/**
- * @description Inicia o download do relatório em formato TXT.
- */
 function downloadReportTXT(id) {
     const documents = getDocuments();
     const doc = documents.find(d => d.id === id);
@@ -400,85 +448,129 @@ function downloadReportTXT(id) {
 }
 
 
-// Geração de PDF (Usando jsPDF) - ATUALIZADA para Logo Base64
+// Geração de PDF (Usando jsPDF) - COM LOGO EMBUTIDA E NOVA ESTRUTURA
 function generateAndDownloadPDF(id) {
     const documents = getDocuments();
     const doc = documents.find(d => d.id === id);
     if (!doc) return;
     
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF();
-    let y = 10;
-    const lineHeight = 7;
-    const margin = 15;
+    const pdf = new jsPDF('p', 'mm', 'a4'); // Configuração A4
     
-    // Bloco da Logomarca
+    let y = 15;
+    const lineHeight = 6;
+    const margin = 15;
+    const width = 180;
+    
+    // 1. Logomarca e Título
     if (doc.logo) {
         if (doc.logo.startsWith('data:image')) {
-            // Se for Base64, insere diretamente
-            // Nota: Se for PNG, a transparência será perdida se for adicionada como 'JPEG'
-            const imgType = doc.logo.substring(doc.logo.indexOf(':') + 1, doc.logo.indexOf(';')).toUpperCase().replace('IMAGE/', '');
-            pdf.addImage(doc.logo, imgType, margin, y, 30, 30); 
-            y += 35; // Avança o Y
-        } else {
-            // Se for URL, adiciona a URL como texto (já que a imagem URL externa pode falhar por CORS)
-            pdf.setFontSize(10);
-            pdf.text(`Logo URL: ${doc.logo}`, margin, y);
-            y += lineHeight; 
+            const imgType = doc.logo.substring(doc.logo.indexOf(':') + 6, doc.logo.indexOf(';')).toUpperCase();
+            try {
+                pdf.addImage(doc.logo, imgType, margin, y, 20, 20); // Logo (20x20mm)
+            } catch (e) {
+                console.error("Erro ao adicionar imagem ao PDF:", e);
+            }
         }
     }
 
-    // Título e cabeçalho
-    pdf.setFontSize(20);
-    pdf.text(doc.tipo.replace(/_/g, ' '), margin, y);
-    y += lineHeight;
-    pdf.setFontSize(10);
-    pdf.text(`ID: #${doc.id.substring(8)} | Emitido em: ${doc.dataHoraAtual}`, margin, y);
-    y += lineHeight * 2;
+    pdf.setFontSize(18);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(doc.tipo.replace(/_/g, ' '), margin + 25, y + 5); 
     
-    // Dados do Prestador
-    pdf.setFontSize(12);
-    pdf.text(`Empresa: ${doc.nomeEmpresa} (CNPJ: ${doc.cnpj})`, margin, y); y += lineHeight;
-    pdf.text(`Prestador/Solicitante: ${doc.nomePrestador}`, margin, y); y += lineHeight;
-    pdf.text(`Data do Serviço/Requisição: ${doc.dataServico}`, margin, y); y += lineHeight * 2;
-
-    // Tabela de Itens (Simulando uma tabela com linhas de texto)
-    pdf.setFontSize(12);
-    pdf.text("ITENS/SERVIÇOS", margin, y); y += lineHeight;
     pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`ID: #${doc.id.substring(8)}`, margin + 25, y + 10);
+    pdf.text(`Emitido em: ${doc.dataHoraAtual}`, margin + 25, y + 15);
+    y += 25;
     
-    // Cabeçalho da "tabela"
-    pdf.text("Produto/Serviço", margin, y);
-    pdf.text("Qtd", 100, y);
-    pdf.text("Preço Unit.", 120, y);
-    pdf.text("Subtotal", 160, y);
+    // Linha separadora
+    pdf.line(margin, y, margin + width, y);
     y += lineHeight * 0.5;
-    pdf.line(margin, y, 195, y); // Linha separadora
+
+    // 2. Dados do Emissor e Destinatário
+    const halfWidth = width / 2;
+    const destinatarioLegend = DESTINATARIO_LEGENDS[doc.tipo];
+
+    // Coluna 1: Emissor
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("EMISSOR / PRESTADOR", margin, y);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Empresa: ${doc.nomeEmpresa}`, margin, y + lineHeight);
+    pdf.text(`CNPJ/CPF: ${doc.cnpj}`, margin, y + lineHeight * 2);
+    pdf.text(`Emissor: ${doc.nomePrestador}`, margin, y + lineHeight * 3);
+    
+    // Coluna 2: Destinatário
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(destinatarioLegend.toUpperCase(), margin + halfWidth, y);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Nome: ${doc.nomeDestinatario}`, margin + halfWidth, y + lineHeight);
+    if (doc.empresaDestinatario) {
+        pdf.text(`Empresa: ${doc.empresaDestinatario}`, margin + halfWidth, y + lineHeight * 2);
+    }
+    pdf.text(`CNPJ/CPF: ${doc.docDestinatario}`, margin + halfWidth, y + lineHeight * (doc.empresaDestinatario ? 3 : 2));
+    
+    y += lineHeight * 4; // Avança o Y para baixo da seção de dados
+    
+    // Linha separadora
+    pdf.line(margin, y, margin + width, y);
     y += lineHeight;
 
+    // 3. Tabela de Itens
+    
+    // Cabeçalho da Tabela
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFillColor(240, 240, 240); // Cor de fundo do cabeçalho
+    pdf.rect(margin, y - 5, width, 5, 'F');
+    
+    pdf.text("Produto/Serviço", margin + 1, y - 1);
+    pdf.text("Qtd", 110, y - 1, { align: 'right' });
+    pdf.text("Preço Unit.", 140, y - 1, { align: 'right' });
+    pdf.text("Subtotal", 175, y - 1, { align: 'right' });
+    y += lineHeight;
+
+    // Linhas de Itens
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
     doc.items.forEach(item => {
         const preco = parseFloat(item.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         const subtotal = parseFloat(item.subtotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         
-        pdf.text(item.produto, margin, y);
-        pdf.text(item.quantidade.toString(), 100, y);
-        pdf.text(`R$ ${preco}`, 120, y);
-        pdf.text(`R$ ${subtotal}`, 160, y);
+        pdf.text(item.produto, margin + 1, y);
+        pdf.text(item.quantidade.toString(), 110, y, { align: 'right' });
+        pdf.text(`R$ ${preco}`, 140, y, { align: 'right' });
+        pdf.text(`R$ ${subtotal}`, 175, y, { align: 'right' });
         y += lineHeight;
+        
+        // Verifica se precisa de nova página
+        if (y > 270) { 
+            pdf.addPage();
+            y = 15;
+        }
     });
-
-    // Linha de Pagamento e Total
-    y += lineHeight;
-    pdf.line(margin, y, 195, y); 
-    y += lineHeight;
-
-    const totalFormatado = parseFloat(doc.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    pdf.setFontSize(14);
-    pdf.text(`TOTAL GERAL: R$ ${totalFormatado}`, 160, y, { align: "right" }); 
-    y += lineHeight;
-    pdf.setFontSize(10);
-    pdf.text(`Pagamento: ${doc.formaPagamento} (Prazo: ${doc.prazoPagamento || 'À vista'})`, margin, y); y += lineHeight;
-
     
+    // 4. Rodapé e Total
+    y += lineHeight * 0.5;
+    pdf.line(margin, y, margin + width, y); // Linha antes do total
+    y += lineHeight;
+
+    // Total
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("TOTAL GERAL:", 140, y, { align: 'right' });
+    pdf.text(`R$ ${parseFloat(doc.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 175, y, { align: 'right' });
+    y += lineHeight;
+
+    // Condições
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Condições de Pagamento: ${doc.formaPagamento} (Prazo: ${doc.prazoPagamento || 'À vista'})`, margin, y);
+    
+    // Data do Serviço (para ter a informação isolada na base do documento)
+    y += lineHeight * 2;
+    pdf.text(`Data do Serviço/Requisição: ${doc.dataServico}`, margin, y);
+
     pdf.save(`${doc.tipo}_${doc.id.substring(8)}.pdf`);
 }
