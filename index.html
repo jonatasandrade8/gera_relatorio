@@ -29,9 +29,16 @@
             
             <label>Data/Hora Atual: <input type="text" id="data-hora-atual" readonly></label>
 
-            <label for="logo">Logomarca (URL da Imagem):</label>
-            <input type="url" id="logo" placeholder="URL da imagem (Ex: https://.../logo.png)">
-            
+            <fieldset>
+                <legend>Logomarca (Opcional)</legend>
+                <label for="logo-url">Opção 1: URL da Logomarca:</label>
+                <input type="url" id="logo-url" placeholder="Ex: https://meu-site.com/logo.png">
+
+                <label for="logo-file">Opção 2: Enviar Arquivo de Imagem (.png, .jpg):</label>
+                <input type="file" id="logo-file" accept="image/*">
+                <small style="display: block; margin-top: -10px; margin-bottom: 10px;">Se um arquivo for enviado, ele será salvo como Base64.</small>
+                <div id="logo-preview" style="max-width: 100px; max-height: 100px; margin-top: 10px; border: 1px dashed #ccc;"></div>
+            </fieldset>
             <fieldset>
                 <legend>Dados do Prestador/Cliente</legend>
                 <label for="nome-prestador">Nome do Prestador/Solicitante:</label>
@@ -82,6 +89,7 @@
                         </tbody>
                 </table>
             </section>
+
             <fieldset>
                 <legend>Condições de Pagamento</legend>
                 <label for="forma-pagamento">Forma de Pagamento:</label>

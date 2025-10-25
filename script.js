@@ -1,8 +1,9 @@
 // ==================== FUNÇÕES DE UTILIDADE E CONFIGURAÇÃO ====================
 const LOCAL_STORAGE_KEY = 'document_generator_data';
 
-// VARIÁVEL GLOBAL para armazenar os itens do formulário atual antes de salvar
-let currentFormItems = []; 
+// VARIÁVEIS GLOBAIS
+let currentFormItems = []; // Itens temporários do formulário atual
+let currentLogoData = ''; // Base64 da imagem enviada ou URL
 
 // Gera a string de data e hora atual
 function formatarDataHoraAtual() {
@@ -23,11 +24,41 @@ function saveDocuments(documents) {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(documents));
 }
 
+// Lógica para ler e exibir o arquivo de imagem
+function handleLogoFileUpload(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('logo-preview');
+    preview.innerHTML = '';
+    currentLogoData = ''; // Limpa o estado anterior
+
+    if (file) {
+        if (!file.type.startsWith('image/')) {
+            alert('Por favor, selecione um arquivo de imagem válido.');
+            event.target.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            currentLogoData = e.target.result; // Armazena o Base64
+            
+            // Exibe a prévia
+            const img = document.createElement('img');
+            img.src = currentLogoData;
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100px';
+            preview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
 // Inicializa ao carregar a página
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('data-hora-atual').value = formatarDataHoraAtual();
+    document.getElementById('logo-file').addEventListener('change', handleLogoFileUpload);
     renderDocumentList();
-    updateItemsTable(); // Garante que a tabela de itens está vazia ao iniciar
+    updateItemsTable();
 });
 
 
@@ -106,9 +137,9 @@ function updateItemsTable() {
 }
 
 
-// ==================== FUNÇÕES CRUD (CREATE, READ, UPDATE, DELETE) - ATUALIZADAS ====================
+// ==================== FUNÇÕES CRUD (CREATE, READ, UPDATE, DELETE) ====================
 
-// CREATE e UPDATE (Salvar Documento) - ATUALIZADA
+// CREATE e UPDATE (Salvar Documento) - ATUALIZADA para Logo
 document.getElementById('document-form').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -120,20 +151,24 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
     const form = e.target;
     const documentId = form.dataset.editingId;
     
-    // Calcula o total novamente baseado no array currentFormItems
+    // Calcula o total
     const total = currentFormItems.reduce((sum, item) => sum + parseFloat(item.subtotal), 0).toFixed(2);
 
+    // TRATAMENTO DA LOGO: Prioriza Base64, senão usa URL
+    const logoUrl = document.getElementById('logo-url').value;
+    let finalLogoData = currentLogoData || logoUrl || '';
+    
     const newDocument = {
         id: documentId ? documentId : Date.now().toString(),
         tipo: document.getElementById('tipo-documento').value,
         dataHoraAtual: document.getElementById('data-hora-atual').value,
-        logo: document.getElementById('logo').value,
+        logo: finalLogoData, // Salva Base64 ou URL
         nomePrestador: document.getElementById('nome-prestador').value,
         nomeEmpresa: document.getElementById('nome-empresa').value,
         cnpj: document.getElementById('cnpj').value,
         dataServico: document.getElementById('data-servico').value,
-        items: [...currentFormItems], // Salva a lista de itens
-        total: total, // Salva o total calculado
+        items: [...currentFormItems],
+        total: total,
         formaPagamento: document.getElementById('forma-pagamento').value,
         prazoPagamento: document.getElementById('prazo-pagamento').value,
     };
@@ -156,12 +191,14 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
     form.reset(); 
     document.getElementById('data-hora-atual').value = formatarDataHoraAtual(); 
     
-    // LIMPA E ATUALIZA O ESTADO DOS ITENS
+    // LIMPA E ATUALIZA O ESTADO
     currentFormItems = [];
+    currentLogoData = '';
+    document.getElementById('logo-preview').innerHTML = ''; // Limpa preview da logo
     updateItemsTable();
 });
 
-// UPDATE (Carregar dados para Edição) - ATUALIZADA
+// UPDATE (Carregar dados para Edição) - ATUALIZADA para Logo
 function editDocument(id) {
     const documents = getDocuments();
     const doc = documents.find(d => d.id === id);
@@ -171,10 +208,9 @@ function editDocument(id) {
         return;
     }
 
-    // Preenche o formulário com dados do documento
+    // Preenche dados do documento
     document.getElementById('tipo-documento').value = doc.tipo;
     document.getElementById('data-hora-atual').value = doc.dataHoraAtual;
-    document.getElementById('logo').value = doc.logo;
     document.getElementById('nome-prestador').value = doc.nomePrestador;
     document.getElementById('nome-empresa').value = doc.nomeEmpresa;
     document.getElementById('cnpj').value = doc.cnpj;
@@ -182,7 +218,30 @@ function editDocument(id) {
     document.getElementById('forma-pagamento').value = doc.formaPagamento;
     document.getElementById('prazo-pagamento').value = doc.prazoPagamento;
     
-    // CARREGA E RENDERIZA OS ITENS
+    // TRATAMENTO DA LOGO (CARREGAMENTO)
+    document.getElementById('logo-file').value = ''; // Limpa input File
+    currentLogoData = ''; // Zera o Base64
+
+    const preview = document.getElementById('logo-preview');
+    preview.innerHTML = '';
+
+    if (doc.logo) {
+        if (doc.logo.startsWith('data:image')) {
+            // Se for Base64, exibe prévia e armazena na variável global
+            currentLogoData = doc.logo;
+            const img = document.createElement('img');
+            img.src = currentLogoData;
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100px';
+            preview.appendChild(img);
+            document.getElementById('logo-url').value = ''; // Limpa o campo URL
+        } else {
+            // Se for URL, preenche o campo URL
+            document.getElementById('logo-url').value = doc.logo;
+        }
+    }
+
+    // CARREGA ITENS
     currentFormItems = doc.items || [];
     updateItemsTable();
 
@@ -202,12 +261,14 @@ document.getElementById('clear-form-btn').addEventListener('click', function() {
     document.getElementById('save-btn').textContent = 'Salvar Documento (C/U)';
     document.getElementById('data-hora-atual').value = formatarDataHoraAtual();
     
-    // LIMPA O ESTADO DOS ITENS
+    // LIMPA O ESTADO
     currentFormItems = [];
+    currentLogoData = '';
+    document.getElementById('logo-preview').innerHTML = '';
     updateItemsTable();
 });
 
-// READ (Renderizar a Lista de Documentos) - Não precisa de grandes mudanças, só exibe o total
+// READ (Renderizar a Lista de Documentos) - Não precisa de mudanças.
 function renderDocumentList() {
     const list = document.getElementById('document-list');
     list.innerHTML = '';
@@ -260,9 +321,6 @@ function deleteDocument(id) {
 
 // ==================== FUNÇÕES DE EXPORTAÇÃO E COMPARTILHAMENTO - ATUALIZADAS ====================
 
-/**
- * @description Gera o conteúdo de texto para o compartilhamento, incluindo a lista de itens.
- */
 function generateShareText(doc) {
     const docTitle = doc.tipo.toUpperCase().replace(/_/g, ' ');
     const idCurto = doc.id.substring(8);
@@ -324,7 +382,7 @@ function downloadReportTXT(id) {
     const doc = documents.find(d => d.id === id);
     if (!doc) return;
 
-    const reportText = generateShareText(doc).replace(/\*/g, ''); // Remove a formatação markdown para TXT
+    const reportText = generateShareText(doc).replace(/\*/g, ''); 
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const filename = `${doc.tipo}_${doc.id.substring(8)}_${date}.txt`;
     
@@ -342,7 +400,7 @@ function downloadReportTXT(id) {
 }
 
 
-// Geração de PDF (Usando jsPDF) - ATUALIZADA
+// Geração de PDF (Usando jsPDF) - ATUALIZADA para Logo Base64
 function generateAndDownloadPDF(id) {
     const documents = getDocuments();
     const doc = documents.find(d => d.id === id);
@@ -354,6 +412,22 @@ function generateAndDownloadPDF(id) {
     const lineHeight = 7;
     const margin = 15;
     
+    // Bloco da Logomarca
+    if (doc.logo) {
+        if (doc.logo.startsWith('data:image')) {
+            // Se for Base64, insere diretamente
+            // Nota: Se for PNG, a transparência será perdida se for adicionada como 'JPEG'
+            const imgType = doc.logo.substring(doc.logo.indexOf(':') + 1, doc.logo.indexOf(';')).toUpperCase().replace('IMAGE/', '');
+            pdf.addImage(doc.logo, imgType, margin, y, 30, 30); 
+            y += 35; // Avança o Y
+        } else {
+            // Se for URL, adiciona a URL como texto (já que a imagem URL externa pode falhar por CORS)
+            pdf.setFontSize(10);
+            pdf.text(`Logo URL: ${doc.logo}`, margin, y);
+            y += lineHeight; 
+        }
+    }
+
     // Título e cabeçalho
     pdf.setFontSize(20);
     pdf.text(doc.tipo.replace(/_/g, ' '), margin, y);
