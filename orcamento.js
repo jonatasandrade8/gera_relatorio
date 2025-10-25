@@ -1,6 +1,5 @@
 // ==================== CONFIGURAÇÕES E UTILIDADES ====================
 const LOCAL_STORAGE_KEY = 'orcamento_generator_data';
-// NOVO: Chave de armazenamento para os dados do Emissor (Prestador)
 const EMITTER_STORAGE_KEY = 'orcamento_emitter_data'; 
 
 // VARIÁVEIS GLOBAIS
@@ -30,7 +29,56 @@ function saveDocuments(documents) {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(documents));
 }
 
-// ==================== LÓGICA DE PERSISTÊNCIA DO EMISSOR ====================
+// ==================== LÓGICA DE CEP E PERSISTÊNCIA DO EMISSOR ====================
+
+/**
+ * Função para buscar o endereço usando a API ViaCEP
+ * @param {string} cep - O CEP a ser buscado.
+ * @param {string} addressInputId - ID do campo de Endereço.
+ * @param {string} cityInputId - ID do campo de Cidade.
+ * @param {string} stateInputId - ID do campo de Estado.
+ */
+async function fetchAddressByCep(cep, addressInputId, cityInputId, stateInputId) {
+    // Remove qualquer formatação de CEP (ex: 00000-000 -> 00000000)
+    const cleanCep = cep.replace(/\D/g, ''); 
+    if (cleanCep.length !== 8) return;
+
+    const addressInput = document.getElementById(addressInputId);
+    const cityInput = document.getElementById(cityInputId);
+    const stateInput = document.getElementById(stateInputId);
+
+    // Limpa campos enquanto busca
+    addressInput.value = 'Buscando...';
+    cityInput.value = '';
+    stateInput.value = '';
+
+    try {
+        const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data = await response.json();
+
+        if (data.erro) {
+            alert('CEP não encontrado. Preencha manualmente.');
+            addressInput.value = '';
+            addressInput.focus();
+            return;
+        }
+
+        // Preenche os campos com os dados retornados
+        // Adiciona vírgula para que o usuário adicione o número
+        addressInput.value = `${data.logradouro}${data.logradouro ? ', ' : ''}`; 
+        cityInput.value = data.localidade;
+        stateInput.value = data.uf;
+        
+        // Coloca o foco no campo de endereço para o usuário digitar o número
+        addressInput.focus();
+
+    } catch (error) {
+        console.error('Erro ao buscar CEP:', error);
+        alert('Erro de conexão ao buscar CEP. Preencha manualmente.');
+        addressInput.value = '';
+    }
+}
+
 
 function saveEmitterData() {
     const emitterData = {
@@ -39,6 +87,9 @@ function saveEmitterData() {
         prestadorContato: document.getElementById('prestador-contato').value,
         prestadorDoc: document.getElementById('prestador-doc').value,
         validadeDias: document.getElementById('validade-dias').value,
+        // Novos campos
+        prestadorCep: document.getElementById('prestador-cep').value,
+        prestadorEndereco: document.getElementById('prestador-endereco').value,
         prestadorCidade: document.getElementById('prestador-cidade').value,
         prestadorEstado: document.getElementById('prestador-estado').value,
     };
@@ -57,6 +108,9 @@ function loadEmitterData() {
     if (data.prestadorContato) document.getElementById('prestador-contato').value = data.prestadorContato;
     if (data.prestadorDoc) document.getElementById('prestador-doc').value = data.prestadorDoc;
     if (data.validadeDias) document.getElementById('validade-dias').value = data.validadeDias;
+    // Novos campos
+    if (data.prestadorCep) document.getElementById('prestador-cep').value = data.prestadorCep;
+    if (data.prestadorEndereco) document.getElementById('prestador-endereco').value = data.prestadorEndereco;
     if (data.prestadorCidade) document.getElementById('prestador-cidade').value = data.prestadorCidade;
     if (data.prestadorEstado) document.getElementById('prestador-estado').value = data.prestadorEstado;
 }
@@ -114,8 +168,16 @@ function handleLogoFileUpload(event) {
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logo-file').addEventListener('change', handleLogoFileUpload);
     
-    // NOVO: Carrega os dados do Emissor ao carregar a página
+    // Carrega os dados do Emissor ao carregar a página
     loadEmitterData(); 
+
+    // Listeners para preenchimento de CEP
+    document.getElementById('prestador-cep').addEventListener('blur', (e) => {
+        fetchAddressByCep(e.target.value, 'prestador-endereco', 'prestador-cidade', 'prestador-estado');
+    });
+    document.getElementById('cliente-cep').addEventListener('blur', (e) => {
+        fetchAddressByCep(e.target.value, 'cliente-endereco', 'cliente-cidade', 'cliente-estado');
+    });
 
     // Atualiza os totais e datas ao carregar e em mudanças
     updateTotals();
@@ -250,7 +312,7 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
         return; 
     }
     
-    // NOVO: Salva os dados do Prestador (Emissor) antes de salvar o documento
+    // Salva os dados do Prestador (Emissor) antes de salvar o documento
     saveEmitterData(); 
 
     // Processamento dos dados
@@ -282,6 +344,8 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
         prestadorContato: document.getElementById('prestador-contato').value,
         prestadorDoc: document.getElementById('prestador-doc').value,
         validadeDias: validadeDias,
+        prestadorCep: document.getElementById('prestador-cep').value, 
+        prestadorEndereco: document.getElementById('prestador-endereco').value, 
         prestadorCidade: document.getElementById('prestador-cidade').value,
         prestadorEstado: document.getElementById('prestador-estado').value,
 
@@ -290,6 +354,8 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
         clienteEmail: document.getElementById('cliente-email').value,
         clienteContato: document.getElementById('cliente-contato').value,
         clienteDoc: document.getElementById('cliente-doc').value,
+        clienteCep: document.getElementById('cliente-cep').value, 
+        clienteEndereco: document.getElementById('cliente-endereco').value, 
         clienteCidade: document.getElementById('cliente-cidade').value,
         clienteEstado: document.getElementById('cliente-estado').value,
         
@@ -319,8 +385,6 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
     
     // Limpa o formulário e estado
     clearForm(form);
-    // Recarrega os dados do Emissor (já que o clearForm chamou reset())
-    loadEmitterData();
 });
 
 // Limpar Formulário
@@ -340,7 +404,7 @@ function clearForm(form) {
     updateItemsTable();
     updateTotals(); // Reinicia os displays de totais/datas
 
-    // NOVO: Recarrega os dados do Prestador após o reset do formulário
+    // Recarrega os dados do Prestador após o reset do formulário
     loadEmitterData(); 
 }
 
@@ -361,6 +425,8 @@ function editDocument(id) {
     document.getElementById('prestador-contato').value = doc.prestadorContato;
     document.getElementById('prestador-doc').value = doc.prestadorDoc;
     document.getElementById('validade-dias').value = doc.validadeDias;
+    document.getElementById('prestador-cep').value = doc.prestadorCep || ''; 
+    document.getElementById('prestador-endereco').value = doc.prestadorEndereco || ''; 
     document.getElementById('prestador-cidade').value = doc.prestadorCidade;
     document.getElementById('prestador-estado').value = doc.prestadorEstado;
 
@@ -369,6 +435,8 @@ function editDocument(id) {
     document.getElementById('cliente-email').value = doc.clienteEmail;
     document.getElementById('cliente-contato').value = doc.clienteContato;
     document.getElementById('cliente-doc').value = doc.clienteDoc;
+    document.getElementById('cliente-cep').value = doc.clienteCep || ''; 
+    document.getElementById('cliente-endereco').value = doc.clienteEndereco || ''; 
     document.getElementById('cliente-cidade').value = doc.clienteCidade;
     document.getElementById('cliente-estado').value = doc.clienteEstado;
     
@@ -454,7 +522,7 @@ function deleteDocument(id) {
 // ==================== FUNÇÃO DE EXPORTAÇÃO PDF APRIMORADA ====================
 
 /**
- * Gera e baixa o PDF, com lógica aprimorada para redimensionamento da logo.
+ * Gera e baixa o PDF, com lógica aprimorada para redimensionamento da logo e tabela.
  * Tornada assíncrona para aguardar o carregamento da imagem.
  */
 async function generateAndDownloadPDF(id) {
@@ -469,9 +537,9 @@ async function generateAndDownloadPDF(id) {
     const width = 180;
     const lineHeight = 6;
     let y = 15;
-    let logoHeight = 0; // Altura que a logo irá ocupar
-    const MAX_LOGO_HEIGHT_MM = 30; // Altura máxima permitida para a logo no PDF
-    const MAX_LOGO_WIDTH_MM = 60;  // Largura máxima permitida
+    let logoHeight = 0; 
+    const MAX_LOGO_HEIGHT_MM = 30; 
+    const MAX_LOGO_WIDTH_MM = 60;  
 
     // 1. Carregamento e Posicionamento da Logo
     if (doc.logo) {
@@ -485,18 +553,14 @@ async function generateAndDownloadPDF(id) {
             let finalWidth = 0;
             let finalHeight = 0;
 
-            // Determina as dimensões finais com base nas restrições
             if (originalHeight > MAX_LOGO_HEIGHT_MM * (originalWidth / MAX_LOGO_WIDTH_MM)) {
-                // Restrito pela altura
                 finalHeight = MAX_LOGO_HEIGHT_MM;
                 finalWidth = finalHeight * aspectRatio;
             } else {
-                // Restrito pela largura
                 finalWidth = MAX_LOGO_WIDTH_MM;
                 finalHeight = finalWidth / aspectRatio;
             }
 
-            // Garante que não ultrapasse a área (apenas para segurança)
             if (finalWidth > MAX_LOGO_WIDTH_MM) {
                 finalWidth = MAX_LOGO_WIDTH_MM;
                 finalHeight = finalWidth / aspectRatio;
@@ -506,21 +570,20 @@ async function generateAndDownloadPDF(id) {
                  finalWidth = finalHeight * aspectRatio;
             }
             
-            // Adiciona a imagem no canto superior direito (195mm - margem)
             const xPos = 195 - margin - finalWidth; 
             const yPos = margin;
             
             const imgType = doc.logo.startsWith('data:image') ? 
                             doc.logo.substring(doc.logo.indexOf('/') + 1, doc.logo.indexOf(';')).toUpperCase() : 
-                            'JPEG'; // Tenta JPEG para URL, mas jsPDF deve ser inteligente
+                            'JPEG'; 
 
             pdf.addImage(imageObj, imgType, xPos, yPos, finalWidth, finalHeight);
-            logoHeight = finalHeight; // Altura real ocupada
+            logoHeight = finalHeight; 
         }
     }
     
     // 2. Título e ID (Posicionamento ajustado pela Logo)
-    const titleY = logoHeight > 0 ? (margin + logoHeight * 0.5) : margin; // Centraliza o título verticalmente com a logo, se houver
+    const titleY = logoHeight > 0 ? (margin + logoHeight * 0.5) : margin; 
     
     pdf.setFontSize(22);
     pdf.setFont('helvetica', 'bold');
@@ -528,80 +591,138 @@ async function generateAndDownloadPDF(id) {
     pdf.setFontSize(10);
     pdf.text(`ID: #${doc.id.substring(8)}`, margin, titleY + 5); 
 
-    // Ajusta o ponto de partida 'y' para o restante do documento
     y = Math.max(y + 15, margin + logoHeight + 5);
-    y = Math.max(y, 45); // Garante que comece pelo menos em 45mm, se a logo for muito pequena
+    y = Math.max(y, 45); 
 
     pdf.line(margin, y, margin + width, y);
     y += lineHeight;
 
     // 3. Dados do Prestador e Cliente
     const halfWidth = width / 2;
+    let currentY = y;
 
     // Coluna 1: Prestador
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
-    pdf.text("PRESTADOR (EMISSOR)", margin, y);
+    pdf.text("PRESTADOR (EMISSOR)", margin, currentY);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(`Nome: ${doc.prestadorNome}`, margin, y + lineHeight);
-    pdf.text(`Contato: ${doc.prestadorContato}`, margin, y + lineHeight * 2);
-    if (doc.prestadorEmail) pdf.text(`Email: ${doc.prestadorEmail}`, margin, y + lineHeight * 3);
-    if (doc.prestadorDoc) pdf.text(`Doc: ${doc.prestadorDoc}`, margin, y + lineHeight * 4);
-    if (doc.prestadorCidade) pdf.text(`Local: ${doc.prestadorCidade}/${doc.prestadorEstado}`, margin, y + lineHeight * 5);
+    pdf.text(`Nome: ${doc.prestadorNome}`, margin, currentY + lineHeight);
+    pdf.text(`Contato: ${doc.prestadorContato}`, margin, currentY + lineHeight * 2);
+    if (doc.prestadorEmail) pdf.text(`Email: ${doc.prestadorEmail}`, margin, currentY + lineHeight * 3);
+    if (doc.prestadorDoc) pdf.text(`Doc: ${doc.prestadorDoc}`, margin, currentY + lineHeight * 4);
+    
+    // Endereço do Prestador (Obrigatório, portanto sempre exibido)
+    const prestadorEnderecoText = `${doc.prestadorEndereco}${doc.prestadorEndereco && doc.prestadorCidade ? ',' : ''} ${doc.prestadorCidade}/${doc.prestadorEstado}`;
+    pdf.text(`Endereço: ${prestadorEnderecoText}`, margin, currentY + lineHeight * 5);
+    pdf.text(`CEP: ${doc.prestadorCep}`, margin, currentY + lineHeight * 6);
     
     // Coluna 2: Cliente
     pdf.setFont('helvetica', 'bold');
-    pdf.text("CLIENTE", margin + halfWidth, y);
+    pdf.text("CLIENTE", margin + halfWidth, currentY);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(`Nome: ${doc.clienteNome}`, margin + halfWidth, y + lineHeight);
-    pdf.text(`Contato: ${doc.clienteContato}`, margin + halfWidth, y + lineHeight * 2);
-    if (doc.clienteEmail) pdf.text(`Email: ${doc.clienteEmail}`, margin + halfWidth, y + lineHeight * 3);
-    if (doc.clienteDoc) pdf.text(`Doc: ${doc.clienteDoc}`, margin + halfWidth, y + lineHeight * 4);
-    if (doc.clienteCidade) pdf.text(`Local: ${doc.clienteCidade}/${doc.clienteEstado}`, margin + halfWidth, y + lineHeight * 5);
+    pdf.text(`Nome: ${doc.clienteNome}`, margin + halfWidth, currentY + lineHeight);
+    pdf.text(`Contato: ${doc.clienteContato}`, margin + halfWidth, currentY + lineHeight * 2);
+    if (doc.clienteEmail) pdf.text(`Email: ${doc.clienteEmail}`, margin + halfWidth, currentY + lineHeight * 3);
+    if (doc.clienteDoc) pdf.text(`Doc: ${doc.clienteDoc}`, margin + halfWidth, currentY + lineHeight * 4);
     
-    y += lineHeight * 6; 
-    
+    // Endereço do Cliente (Opcional, só exibe se houver Endereço ou CEP)
+    let finalClienteY = currentY + lineHeight * 5;
+    if (doc.clienteEndereco) {
+        const clienteEnderecoText = `${doc.clienteEndereco}${doc.clienteEndereco && doc.clienteCidade ? ',' : ''} ${doc.clienteCidade}/${doc.clienteEstado}`;
+        pdf.text(`Endereço: ${clienteEnderecoText}`, margin + halfWidth, finalClienteY);
+        finalClienteY += lineHeight;
+    }
+    if (doc.clienteCep) {
+        pdf.text(`CEP: ${doc.clienteCep}`, margin + halfWidth, finalClienteY);
+        finalClienteY += lineHeight;
+    }
+
+    // Aumenta o Y base para o maior dos blocos
+    currentY = Math.max(currentY + lineHeight * 7, finalClienteY); 
+    y = currentY;
+
     pdf.line(margin, y, margin + width, y);
     y += lineHeight;
 
-    // 4. Tabela de Itens
+    // 4. Tabela de Itens (Com bordas arredondadas e linhas finas)
     
-    // Cabeçalho da Tabela
+    const tableStartY = y;
+    let tableCurrentY = y;
+    const headerHeight = 5;
+    const borderRadius = 2; // Raio para bordas arredondadas
+    
+    // Configurações do cabeçalho
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
-    pdf.setFillColor(240, 240, 240); 
-    pdf.rect(margin, y - 5, width, 5, 'F');
     
-    pdf.text("Produto/Serviço", margin + 1, y - 1);
-    pdf.text("Qtd", 110, y - 1, { align: 'right' });
-    pdf.text("Valor Unit.", 140, y - 1, { align: 'right' });
-    pdf.text("Subtotal", 175, y - 1, { align: 'right' });
-    y += lineHeight;
+    // 4a. Preenche a área do cabeçalho
+    pdf.setFillColor(240, 240, 240); 
+    pdf.rect(margin, tableCurrentY - headerHeight, width, headerHeight, 'F'); 
 
-    // Linhas de Itens
+    // 4b. Adiciona texto do cabeçalho
+    pdf.text("Produto/Serviço", margin + 1, tableCurrentY - 1);
+    pdf.text("Qtd", 110, tableCurrentY - 1, { align: 'right' });
+    pdf.text("Valor Unit.", 140, tableCurrentY - 1, { align: 'right' });
+    pdf.text("Subtotal", 175, tableCurrentY - 1, { align: 'right' });
+    tableCurrentY += lineHeight;
+
+    // 4c. Linhas de Itens
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'normal');
     
     if (doc.items && doc.items.length > 0) {
-        doc.items.forEach(item => {
+        doc.items.forEach((item, index) => {
+            if (tableCurrentY > 270) { 
+                pdf.addPage();
+                tableCurrentY = 15 + headerHeight; 
+                tableStartY = 15;
+                // Recria o cabeçalho em nova página
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFillColor(240, 240, 240); 
+                pdf.rect(margin, tableCurrentY - headerHeight, width, headerHeight, 'F'); 
+                pdf.text("Produto/Serviço", margin + 1, tableCurrentY - 1);
+                pdf.text("Qtd", 110, tableCurrentY - 1, { align: 'right' });
+                pdf.text("Valor Unit.", 140, tableCurrentY - 1, { align: 'right' });
+                pdf.text("Subtotal", 175, tableCurrentY - 1, { align: 'right' });
+                pdf.setFontSize(9);
+                pdf.setFont('helvetica', 'normal');
+            }
+
             const valor = parseFloat(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             const subtotal = parseFloat(item.subtotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             
-            pdf.text(item.produto, margin + 1, y);
-            pdf.text(item.quantidade.toString(), 110, y, { align: 'right' });
-            pdf.text(`R$ ${valor}`, 140, y, { align: 'right' });
-            pdf.text(`R$ ${subtotal}`, 175, y, { align: 'right' });
-            y += lineHeight;
+            pdf.text(item.produto, margin + 1, tableCurrentY);
+            pdf.text(item.quantidade.toString(), 110, tableCurrentY, { align: 'right' });
+            pdf.text(`R$ ${valor}`, 140, tableCurrentY, { align: 'right' });
+            pdf.text(`R$ ${subtotal}`, 175, tableCurrentY, { align: 'right' });
             
-            if (y > 270) { 
-                pdf.addPage();
-                y = 15;
-            }
+            // Linha fina de separação entre itens
+            pdf.setLineWidth(0.1); 
+            pdf.setDrawColor(150, 150, 150); // Cor cinza
+            pdf.line(margin, tableCurrentY + lineHeight * 0.5, margin + width, tableCurrentY + lineHeight * 0.5);
+            
+            tableCurrentY += lineHeight;
         });
     } else {
-        pdf.text("Nenhum item adicionado ao orçamento.", margin + 1, y);
-        y += lineHeight * 2;
+        pdf.text("Nenhum item adicionado ao orçamento.", margin + 1, tableCurrentY);
+        tableCurrentY += lineHeight * 2;
     }
+
+    // 4d. Desenha o Contorno da Tabela (Cabeçalho + Itens) com bordas arredondadas
+    const tableTotalHeight = tableCurrentY - (tableStartY - headerHeight); 
+
+    pdf.setDrawColor(0, 0, 0); // Borda escura para o contorno
+    pdf.setLineWidth(0.2); // Linha um pouco mais grossa para o contorno
+    
+    // Desenha o Retângulo que engloba tudo
+    pdf.rect(margin, tableStartY - headerHeight, width, tableTotalHeight, 'S', borderRadius); 
+
+    // Desenha linha mais grossa separando o cabeçalho dos itens
+    pdf.setLineWidth(0.4); 
+    pdf.line(margin, tableStartY - 5 + 5, margin + width, tableStartY - 5 + 5); 
+    
+    y = tableCurrentY;
     
     // 5. Rodapé e Totais
     y += lineHeight * 0.5;

@@ -71,14 +71,26 @@
                         <input type="number" id="validade-dias" min="1" value="30">
                     </div>
                 </div>
+                
+                <div class="inline-fields">
+                    <div class="field-group">
+                        <label for="prestador-cep">CEP:</label>
+                        <input type="text" id="prestador-cep" required maxlength="9" placeholder="Ex: 00000-000">
+                    </div>
+                    <div class="field-group wide">
+                        <label for="prestador-endereco">Endereço (Rua, Número):</label>
+                        <input type="text" id="prestador-endereco" required>
+                    </div>
+                </div>
+
                 <div class="inline-fields">
                     <div class="field-group">
                         <label for="prestador-cidade">Cidade:</label>
-                        <input type="text" id="prestador-cidade">
+                        <input type="text" id="prestador-cidade" required>
                     </div>
                     <div class="field-group">
                         <label for="prestador-estado">Estado:</label>
-                        <input type="text" id="prestador-estado">
+                        <input type="text" id="prestador-estado" required maxlength="2">
                     </div>
                 </div>
             </fieldset>
@@ -105,6 +117,18 @@
                         <input type="text" id="cliente-doc">
                     </div>
                 </div>
+                
+                <div class="inline-fields">
+                    <div class="field-group">
+                        <label for="cliente-cep">CEP (Opcional):</label>
+                        <input type="text" id="cliente-cep" maxlength="9" placeholder="Ex: 00000-000">
+                    </div>
+                    <div class="field-group wide">
+                        <label for="cliente-endereco">Endereço (Rua, Número - Opcional):</label>
+                        <input type="text" id="cliente-endereco">
+                    </div>
+                </div>
+                
                 <div class="inline-fields">
                     <div class="field-group">
                         <label for="cliente-cidade">Cidade:</label>
@@ -112,7 +136,7 @@
                     </div>
                     <div class="field-group">
                         <label for="cliente-estado">Estado:</label>
-                        <input type="text" id="cliente-estado">
+                        <input type="text" id="cliente-estado" maxlength="2">
                     </div>
                 </div>
             </fieldset>
