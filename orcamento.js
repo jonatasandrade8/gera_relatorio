@@ -9,7 +9,10 @@ let currentLogoData = '';
 function formatDate(date) {
     if (!date) return '--/--/----';
     const d = new Date(date);
-    d.setDate(d.getDate() + 1); // Correção de fuso horário para input[type=date]
+    // Ajuste de fuso horário, se for uma string ISO de data (Ex: 2023-10-25)
+    if (typeof date === 'string' && date.includes('-')) {
+        d.setDate(d.getDate() + 1); 
+    }
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
@@ -108,8 +111,10 @@ function addItem() {
     const quantidade = parseFloat(quantidadeInput.value);
     const valor = parseFloat(valorInput.value);
 
+    // A validação de preenchimento dos itens só é feita AQUI, ao tentar adicionar,
+    // e não ao tentar salvar o formulário.
     if (!produto || isNaN(quantidade) || quantidade <= 0 || isNaN(valor) || valor <= 0) {
-        alert("Por favor, preencha todos os campos do item corretamente (quantidade e valor devem ser positivos).");
+        alert("Por favor, preencha todos os campos do item corretamente (quantidade e valor devem ser positivos) ANTES de adicionar.");
         return;
     }
 
@@ -182,17 +187,15 @@ function updateItemsTable() {
 document.getElementById('document-form').addEventListener('submit', function(e) {
     e.preventDefault();
 
-    // 1. Validação de Itens Adicionados
-    if (currentFormItems.length === 0) {
-        alert("ERRO: É necessário adicionar pelo menos um produto/serviço ao orçamento.");
-        return;
-    }
-    
-    // 2. Validação de Campos (usando checkValidity para campos 'required' do HTML)
+    // 1. Validação de Campos OBRIGATÓRIOS (Prestador/Cliente/FormaPgto)
+    // Se a validação HTML5 falhar, o navegador exibe a mensagem e para.
     if (!e.target.checkValidity()) {
         return; 
     }
     
+    // O BLOCO DE VALIDAÇÃO DE currentFormItems.length FOI REMOVIDO AQUI,
+    // permitindo salvar orçamentos com 0 itens.
+
     // Processamento dos dados
     const form = e.target;
     const documentId = form.dataset.editingId;
@@ -438,7 +441,7 @@ function generateAndDownloadPDF(id) {
     pdf.text(`Nome: ${doc.clienteNome}`, margin + halfWidth, y + lineHeight);
     pdf.text(`Contato: ${doc.clienteContato}`, margin + halfWidth, y + lineHeight * 2);
     if (doc.clienteEmail) pdf.text(`Email: ${doc.clienteEmail}`, margin + halfWidth, y + lineHeight * 3);
-    if (doc.clienteDoc) pdf.text(`Doc: ${doc.clienteDoc}`, margin + halfWidth, y + lineHeight * 4);
+    if (doc.clienteDoc) pdf.text(`CPF/CNPJ: ${doc.clienteDoc}`, margin + halfWidth, y + lineHeight * 4);
     if (doc.clienteCidade) pdf.text(`Local: ${doc.clienteCidade}/${doc.clienteEstado}`, margin + halfWidth, y + lineHeight * 5);
     
     y += lineHeight * 6; 
@@ -463,21 +466,27 @@ function generateAndDownloadPDF(id) {
     // Linhas de Itens
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'normal');
-    doc.items.forEach(item => {
-        const valor = parseFloat(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-        const subtotal = parseFloat(item.subtotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-        
-        pdf.text(item.produto, margin + 1, y);
-        pdf.text(item.quantidade.toString(), 110, y, { align: 'right' });
-        pdf.text(`R$ ${valor}`, 140, y, { align: 'right' });
-        pdf.text(`R$ ${subtotal}`, 175, y, { align: 'right' });
-        y += lineHeight;
-        
-        if (y > 270) { 
-            pdf.addPage();
-            y = 15;
-        }
-    });
+    
+    if (doc.items && doc.items.length > 0) {
+        doc.items.forEach(item => {
+            const valor = parseFloat(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            const subtotal = parseFloat(item.subtotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            
+            pdf.text(item.produto, margin + 1, y);
+            pdf.text(item.quantidade.toString(), 110, y, { align: 'right' });
+            pdf.text(`R$ ${valor}`, 140, y, { align: 'right' });
+            pdf.text(`R$ ${subtotal}`, 175, y, { align: 'right' });
+            y += lineHeight;
+            
+            if (y > 270) { 
+                pdf.addPage();
+                y = 15;
+            }
+        });
+    } else {
+        pdf.text("Nenhum item adicionado ao orçamento.", margin + 1, y);
+        y += lineHeight * 2;
+    }
     
     // 4. Rodapé e Totais
     y += lineHeight * 0.5;
