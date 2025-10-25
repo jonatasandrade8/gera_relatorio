@@ -48,17 +48,40 @@
             </fieldset>
 
             <fieldset>
-                <legend>Detalhes do Item/Serviço</legend>
-                <label for="produto">Nome do Produto/Serviço:</label>
-                <input type="text" id="produto" required>
+                <legend>Adicionar Produto/Serviço</legend>
+                <label for="item-produto">Nome do Produto/Serviço:</label>
+                <input type="text" id="item-produto" placeholder="Ex: Manutenção Preventiva" required>
 
-                <label for="quantidade">Quantidade:</label>
-                <input type="number" id="quantidade" min="1" required>
+                <div style="display: flex; gap: 15px;">
+                    <div style="flex-grow: 1;">
+                        <label for="item-quantidade">Quantidade:</label>
+                        <input type="number" id="item-quantidade" min="1" value="1" required>
+                    </div>
+                    <div style="flex-grow: 1;">
+                        <label for="item-preco">Preço Unitário (R$):</label>
+                        <input type="number" id="item-preco" step="0.01" min="0.01" value="0.00" required>
+                    </div>
+                </div>
 
-                <label for="preco">Preço Unitário (R$):</label>
-                <input type="number" id="preco" step="0.01" min="0.01" required>
+                <button type="button" id="add-item-btn" class="action-btn" style="background-color: #007bff; margin-top: 10px;">Adicionar Item</button>
             </fieldset>
 
+            <section id="item-list-section" style="margin-bottom: 20px; border: 1px solid #ccc; padding: 15px; border-radius: 5px;">
+                <h3>Itens Adicionados: <span id="grand-total-display" style="color: #4CAF50;">R$ 0,00</span></h3>
+                <table id="items-table">
+                    <thead>
+                        <tr>
+                            <th>Produto/Serviço</th>
+                            <th>Qtd</th>
+                            <th>Preço Unit.</th>
+                            <th>Subtotal</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </section>
             <fieldset>
                 <legend>Condições de Pagamento</legend>
                 <label for="forma-pagamento">Forma de Pagamento:</label>
