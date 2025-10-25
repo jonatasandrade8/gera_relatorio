@@ -1,29 +1,38 @@
+/* ==================== 1. VARIÁVEIS E BASE (MOBILE FIRST) ==================== */
 :root {
-    --primary-color: #007bff;
-    --success-color: #28a745;
+    --primary-color: #004c8c; /* Azul Marinho Escuro */
+    --secondary-color: #6c757d; /* Cinza Sóbrio */
+    --success-color: #28a745; 
     --danger-color: #dc3545;
     --background-light: #f4f7f6;
     --card-background: #ffffff;
     --border-color: #e0e0e0;
     --font-color: #333;
+    --spacing-unit: 16px;
+}
+
+* {
+    box-sizing: border-box;
 }
 
 body {
     font-family: 'Roboto', Arial, sans-serif;
     margin: 0;
-    padding: 20px;
+    padding: var(--spacing-unit);
     background-color: var(--background-light);
     color: var(--font-color);
+    line-height: 1.6;
 }
 
 header {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: var(--spacing-unit) * 1.5;
 }
 
 h1 {
     color: var(--primary-color);
-    font-weight: 700;
+    font-weight: 900;
+    font-size: 1.8em;
 }
 
 main {
@@ -31,21 +40,22 @@ main {
     margin: 0 auto;
 }
 
-/* Estilo de Cartão (Card) */
+/* ==================== 2. COMPONENTES ==================== */
+
 .card {
     background: var(--card-background);
-    padding: 25px;
+    padding: var(--spacing-unit);
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-    margin-bottom: 25px;
+    margin-bottom: var(--spacing-unit) * 1.5;
     border: 1px solid var(--border-color);
 }
 
-/* Campos de Formulário */
+/* Formulário e Campos */
 fieldset {
     border: 1px solid var(--border-color);
-    padding: 15px;
-    margin-bottom: 20px;
+    padding: var(--spacing-unit);
+    margin-bottom: var(--spacing-unit);
     border-radius: 6px;
 }
 
@@ -53,10 +63,11 @@ legend {
     font-weight: 700;
     color: var(--primary-color);
     padding: 0 10px;
+    font-size: 1.1em;
 }
 
 .field-group {
-    margin-bottom: 15px;
+    margin-bottom: var(--spacing-unit);
 }
 
 label {
@@ -81,57 +92,79 @@ select {
 
 input:focus, select:focus {
     border-color: var(--primary-color);
-    outline: none;
+    outline: 2px solid rgba(0, 76, 140, 0.2);
 }
 
 .inline-fields {
     display: flex;
-    gap: 20px;
-}
-
-.inline-fields .field-group {
-    flex-grow: 1;
+    flex-direction: column; /* Pilha em mobile */
+    gap: var(--spacing-unit) / 2;
 }
 
 /* Botões */
 .btn {
-    padding: 10px 15px;
+    padding: 12px 15px;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     font-weight: 700;
-    transition: background-color 0.3s;
+    transition: all 0.3s ease;
     text-transform: uppercase;
     font-size: 0.9em;
+    width: 100%; /* Full width em mobile */
+    margin-top: 5px; 
 }
 
-.primary-btn { background-color: var(--primary-color); color: white; }
-.success-btn { background-color: var(--success-color); color: white; }
-.danger-btn { background-color: var(--danger-color); color: white; }
-.action-btn { background-color: #6c757d; color: white; margin-left: 5px; }
+/* Gradientes para botões */
+.btn-primary { 
+    color: white; 
+    background: linear-gradient(135deg, #004c8c, #007bb6); 
+    box-shadow: 0 4px 6px rgba(0, 76, 140, 0.3);
+}
+.btn-primary:hover { 
+    background: linear-gradient(135deg, #007bb6, #004c8c); 
+    box-shadow: 0 6px 8px rgba(0, 76, 140, 0.4);
+}
 
-.primary-btn:hover { background-color: #0056b3; }
-.success-btn:hover { background-color: #1e7e34; }
-.danger-btn:hover { background-color: #bd2130; }
+.btn-secondary { 
+    color: white; 
+    background: linear-gradient(135deg, #6c757d, #a1aab3); 
+    box-shadow: 0 4px 6px rgba(108, 117, 125, 0.3);
+}
+.btn-secondary:hover { 
+    background: linear-gradient(135deg, #a1aab3, #6c757d); 
+}
 
-.full-width-btn {
-    width: 100%;
-    margin-top: 10px;
+.btn-add {
+    color: white; 
+    background-color: var(--success-color);
+}
+.btn-add:hover {
+    background-color: #1e7e34;
+}
+
+.btn-action {
+    padding: 8px 10px;
+    font-size: 0.8em;
+    margin: 4px 0;
+    width: auto;
 }
 
 .form-actions {
     display: flex;
-    justify-content: space-between;
-    gap: 15px;
+    flex-direction: column; /* Pilha em mobile */
+    gap: var(--spacing-unit);
+    margin-top: var(--spacing-unit);
 }
 
-.form-actions .btn {
-    flex-grow: 1;
+/* ==================== 3. TABELA DE ITENS ==================== */
+.table-responsive {
+    overflow-x: auto;
 }
 
-/* Tabela de Itens */
 #items-table {
     width: 100%;
+    min-width: 600px; /* Para garantir que a tabela seja legível em mobile */
     border-collapse: collapse;
     margin-top: 15px;
     font-size: 0.9em;
@@ -139,7 +172,7 @@ input:focus, select:focus {
 
 #items-table th, #items-table td {
     border: 1px solid var(--border-color);
-    padding: 10px;
+    padding: 10px 8px;
 }
 
 #items-table th {
@@ -147,28 +180,35 @@ input:focus, select:focus {
     color: var(--font-color);
     font-weight: 700;
     text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .item-list-section h3 {
     margin-top: 0;
-    margin-bottom: 15px;
+    margin-bottom: var(--spacing-unit);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
 }
 
 .total-display {
     font-size: 1.2em;
-    font-weight: 700;
-    color: var(--success-color);
+    font-weight: 900;
+    color: white;
     padding: 5px 10px;
     border-radius: 4px;
-    background-color: #e9f7eb;
+    background: linear-gradient(45deg, #00a651, var(--success-color));
 }
 
-/* Alinhamento de texto na tabela */
 .text-right {
     text-align: right;
+}
+
+/* Linha de Total na Tabela */
+#items-table .total-row td {
+    border-top: 2px solid var(--primary-color);
+    background-color: #f0f8ff !important;
 }
 
 /* Lista de Documentos Salvos */
@@ -179,24 +219,34 @@ input:focus, select:focus {
 
 #document-list li {
     background: #f9f9fb;
-    padding: 15px;
+    padding: var(--spacing-unit) 12px;
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 8px;
     border-radius: 4px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column; /* Pilha em mobile */
+    gap: 10px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 #document-list li .info {
     flex-grow: 1;
     font-size: 0.95em;
+    font-weight: 700;
 }
 
 #document-list li .actions {
-    min-width: 350px;
-    text-align: right;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: flex-start;
+}
+
+#document-list li .actions .btn {
+    width: auto;
+    flex-grow: 1;
+    min-width: 120px;
+    margin: 0; /* Remove margem extra dos botões */
 }
 
 .logo-preview {
@@ -206,4 +256,50 @@ input:focus, select:focus {
     border: 1px dashed var(--border-color);
     padding: 5px;
     display: inline-block;
+    vertical-align: top;
+}
+.logo-preview img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* ==================== 4. MEDIA QUERY (Desktop/Tablet) ==================== */
+@media (min-width: 768px) {
+    h1 {
+        font-size: 2.5em;
+    }
+    
+    .inline-fields {
+        flex-direction: row; /* Lado a lado em desktop */
+    }
+    
+    .form-actions {
+        flex-direction: row;
+    }
+    .form-actions .btn {
+        width: auto;
+    }
+
+    #document-list li {
+        flex-direction: row;
+        align-items: center;
+    }
+    
+    #document-list li .actions {
+        justify-content: flex-end;
+        min-width: 450px;
+        gap: 10px;
+    }
+
+    #document-list li .actions .btn {
+        width: auto;
+        flex-grow: 0;
+        min-width: 80px;
+    }
+    
+    .item-list-section h3 {
+        flex-direction: row;
+        justify-content: space-between;
+    }
 }

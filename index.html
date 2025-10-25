@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerador de Documentos Profissional</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -98,28 +98,30 @@
                     </div>
                     <div class="field-group">
                         <label for="item-preco">Preço Unitário (R$):</label>
-                        <input type="number" id="item-preco" step="0.01" min="0.01" value="0.00" required>
+                        <input type="number" id="item-preco" step="0.01" min="0.01" value="0.01" required>
                     </div>
                 </div>
 
-                <button type="button" id="add-item-btn" class="btn primary-btn full-width-btn">Adicionar Item</button>
+                <button type="button" id="add-item-btn" class="btn btn-add">Adicionar Item</button>
             </fieldset>
 
             <section class="card item-list-section">
                 <h3>Resumo dos Itens <span id="grand-total-display" class="total-display">R$ 0,00</span></h3>
-                <table id="items-table">
-                    <thead>
-                        <tr>
-                            <th>Produto/Serviço</th>
-                            <th class="text-right">Qtd</th>
-                            <th class="text-right">Preço Unit.</th>
-                            <th class="text-right">Subtotal</th>
-                            <th>Ação</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table id="items-table">
+                        <thead>
+                            <tr>
+                                <th>Produto/Serviço</th>
+                                <th class="text-right">Qtd</th>
+                                <th class="text-right">Preço Unit.</th>
+                                <th class="text-right">Subtotal</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
             </section>
 
             <fieldset>
@@ -129,19 +131,19 @@
                     <input type="text" id="forma-pagamento" required>
                 </div>
                 <div class="field-group">
-                    <label for="prazo-pagamento">Prazo de Pagamento:</label>
+                    <label for="prazo-pagamento">Prazo de Pagamento (Opcional):</label>
                     <input type="date" id="prazo-pagamento">
                 </div>
             </fieldset>
             
             <div class="form-actions">
-                <button type="submit" id="save-btn" class="btn success-btn">Salvar Documento (C/U)</button>
-                <button type="button" id="clear-form-btn" class="btn danger-btn">Limpar Formulário</button>
+                <button type="submit" id="save-btn" class="btn btn-primary">Salvar Documento (C/U)</button>
+                <button type="button" id="clear-form-btn" class="btn btn-secondary">Limpar Formulário</button>
             </div>
         </form>
 
         <section id="lista-documentos" class="card">
-            <h2>Documentos Salvos (LocalStorage)</h2>
+            <h2>Documentos Salvos</h2>
             <ul id="document-list">
                 </ul>
         </section>

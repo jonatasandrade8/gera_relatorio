@@ -33,8 +33,6 @@ const DESTINATARIO_LEGENDS = {
 function updateFormFields() {
     const tipo = document.getElementById('tipo-documento').value;
     const destinatarioLegend = document.getElementById('destinatario-legend');
-
-    // Atualiza a legenda para o tipo de documento
     destinatarioLegend.textContent = DESTINATARIO_LEGENDS[tipo] || 'Dados do Cliente/Parceiro';
 }
 
@@ -74,9 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('data-hora-atual').value = formatarDataHoraAtual();
     document.getElementById('logo-file').addEventListener('change', handleLogoFileUpload);
     
-    // Inicializa a personalização dos campos
     updateFormFields(); 
-    
     renderDocumentList();
     updateItemsTable();
 });
@@ -96,7 +92,7 @@ function addItem() {
     const preco = parseFloat(precoInput.value);
 
     if (!produto || isNaN(quantidade) || quantidade <= 0 || isNaN(preco) || preco <= 0) {
-        alert("Por favor, preencha todos os campos do item corretamente.");
+        alert("Por favor, preencha todos os campos do item corretamente (o preço deve ser maior que zero).");
         return;
     }
 
@@ -150,7 +146,7 @@ function updateItemsTable() {
             <td class="text-right">${item.quantidade}</td>
             <td class="text-right">R$ ${precoFormatado}</td>
             <td class="text-right">R$ ${subtotalFormatado}</td>
-            <td><button type="button" class="btn danger-btn action-btn" onclick="removeItem(${index})">Remover</button></td>
+            <td><button type="button" class="btn btn-action btn-danger" onclick="removeItem(${index})">Remover</button></td>
         `;
     });
     
@@ -158,11 +154,10 @@ function updateItemsTable() {
     const totalRow = tableBody.insertRow();
     totalRow.classList.add('total-row');
     totalRow.innerHTML = `
-        <td colspan="3" class="text-right" style="font-weight: 700; background-color: #f8f9fa;">TOTAL GERAL:</td>
+        <td colspan="3" class="text-right" style="font-weight: 700; background-color: #f0f8ff;">TOTAL GERAL:</td>
         <td class="text-right total-cell" style="font-weight: 700; background-color: #e9f7eb; color: var(--success-color);">R$ ${grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
         <td></td>
     `;
-
 
     totalDisplay.textContent = `R$ ${grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 }
@@ -170,15 +165,24 @@ function updateItemsTable() {
 
 // ==================== FUNÇÕES CRUD (CREATE, READ, UPDATE, DELETE) ====================
 
-// CREATE e UPDATE (Salvar Documento)
+// CREATE e UPDATE (Salvar Documento) - LÓGICA DE VALIDAÇÃO REFORÇADA
 document.getElementById('document-form').addEventListener('submit', function(e) {
     e.preventDefault();
 
+    // 1. Validação de Campos HTML5 (para garantir que o navegador faça o check dos 'required')
+    if (!e.target.checkValidity()) {
+        // Se a validação HTML5 falhar, o navegador exibirá a mensagem padrão. 
+        // A função checkValidity() dispara o processo de validação.
+        return; 
+    }
+
+    // 2. Validação de Itens Adicionados (Lógica customizada)
     if (currentFormItems.length === 0) {
-        alert("Por favor, adicione pelo menos um produto/serviço.");
+        alert("ERRO: É necessário adicionar pelo menos um produto/serviço na lista.");
         return;
     }
     
+    // Processamento dos dados
     const form = e.target;
     const documentId = form.dataset.editingId;
     
@@ -198,7 +202,7 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
         cnpj: document.getElementById('cnpj').value,
         dataServico: document.getElementById('data-servico').value,
         
-        // Novos Dados do Destinatário/Contratante
+        // Dados do Destinatário/Contratante
         nomeDestinatario: document.getElementById('nome-destinatario').value,
         empresaDestinatario: document.getElementById('empresa-destinatario').value,
         docDestinatario: document.getElementById('doc-destinatario').value,
@@ -232,7 +236,7 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
     currentLogoData = '';
     document.getElementById('logo-preview').innerHTML = '';
     updateItemsTable();
-    updateFormFields(); // Atualiza a legenda
+    updateFormFields(); 
 });
 
 // UPDATE (Carregar dados para Edição)
@@ -288,9 +292,20 @@ function editDocument(id) {
     const form = document.getElementById('document-form');
     form.setAttribute('data-editing-id', id);
     document.getElementById('save-btn').textContent = 'Atualizar Documento (U)';
-    updateFormFields(); // Atualiza a legenda do destinatário
+    updateFormFields(); 
     
     window.scrollTo(0, 0); 
+}
+
+// DELETE (Excluir Documento)
+function deleteDocument(id) {
+    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
+
+    let documents = getDocuments();
+    documents = documents.filter(doc => doc.id !== id);
+    saveDocuments(documents);
+    renderDocumentList();
+    alert('Documento excluído.');
 }
 
 // Limpar Formulário
@@ -306,11 +321,12 @@ document.getElementById('clear-form-btn').addEventListener('click', function() {
     currentLogoData = '';
     document.getElementById('logo-preview').innerHTML = '';
     updateItemsTable();
-    updateFormFields(); // Atualiza a legenda
+    updateFormFields(); 
 });
 
+
+// READ (Renderizar a Lista de Documentos) - Botão de remover garantido
 function renderDocumentList() {
-    // Código para renderizar a lista de documentos (sem alterações na lógica)
     const list = document.getElementById('document-list');
     list.innerHTML = '';
     const documents = getDocuments();
@@ -330,40 +346,29 @@ function renderDocumentList() {
             'NOTA_ENTREGA': 'NE'
         };
         const title = docTitleMap[doc.tipo] || 'DOC';
+        const total = parseFloat(doc.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
         li.innerHTML = `
             <div class="info">
-                <strong>${title} #${doc.id.substring(8)}</strong> - ${doc.nomeEmpresa} - R$ ${parseFloat(doc.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                <span><strong>${title} #${doc.id.substring(8)}</strong> - ${doc.nomeEmpresa}</span>
+                <span class="total-display">R$ ${total}</span>
             </div>
             <div class="actions">
-                <button class="btn primary-btn action-btn" onclick="editDocument('${doc.id}')">Editar (U)</button>
-                <button class="btn danger-btn action-btn" onclick="deleteDocument('${doc.id}')">Excluir (D)</button>
-                <button class="btn success-btn action-btn" onclick="generateAndDownloadPDF('${doc.id}')">Baixar PDF</button>
-                <button class="btn primary-btn action-btn" onclick="shareDocument('${doc.id}', 'whatsapp')">WhatsApp</button>
-                <button class="btn action-btn" style="background-color: #6c757d;" onclick="downloadReportTXT('${doc.id}')">Baixar TXT</button>
-                <button class="btn primary-btn action-btn" onclick="shareDocument('${doc.id}', 'email')">Email</button>
+                <button class="btn btn-action btn-primary" onclick="editDocument('${doc.id}')">Editar</button>
+                <button class="btn btn-action btn-danger" onclick="deleteDocument('${doc.id}')">Remover</button>
+                <button class="btn btn-action btn-primary" style="background: #28a745;" onclick="generateAndDownloadPDF('${doc.id}')">Baixar PDF</button>
+                <button class="btn btn-action btn-primary" style="background: #008069;" onclick="shareDocument('${doc.id}', 'whatsapp')">WhatsApp</button>
+                <button class="btn btn-action btn-secondary" onclick="downloadReportTXT('${doc.id}')">TXT</button>
+                <button class="btn btn-action btn-primary" style="background: #e28e00;" onclick="shareDocument('${doc.id}', 'email')">Email</button>
             </div>
         `;
         list.appendChild(li);
     });
 }
 
-function deleteDocument(id) {
-    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
-
-    let documents = getDocuments();
-    documents = documents.filter(doc => doc.id !== id);
-    saveDocuments(documents);
-    renderDocumentList();
-    alert('Documento excluído.');
-}
-
-
 // ==================== FUNÇÕES DE EXPORTAÇÃO E COMPARTILHAMENTO ====================
+// (Mantidas as funções de exportação do passo anterior)
 
-/**
- * @description Gera o conteúdo de texto para o compartilhamento, incluindo Contratante/Recebedor.
- */
 function generateShareText(doc) {
     const docTitle = doc.tipo.toUpperCase().replace(/_/g, ' ');
     const idCurto = doc.id.substring(8);
@@ -448,14 +453,14 @@ function downloadReportTXT(id) {
 }
 
 
-// Geração de PDF (Usando jsPDF) - COM LOGO EMBUTIDA E NOVA ESTRUTURA
+// Geração de PDF (Usando jsPDF)
 function generateAndDownloadPDF(id) {
     const documents = getDocuments();
     const doc = documents.find(d => d.id === id);
     if (!doc) return;
     
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4'); // Configuração A4
+    const pdf = new jsPDF('p', 'mm', 'a4'); 
     
     let y = 15;
     const lineHeight = 6;
@@ -463,14 +468,12 @@ function generateAndDownloadPDF(id) {
     const width = 180;
     
     // 1. Logomarca e Título
-    if (doc.logo) {
-        if (doc.logo.startsWith('data:image')) {
-            const imgType = doc.logo.substring(doc.logo.indexOf(':') + 6, doc.logo.indexOf(';')).toUpperCase();
-            try {
-                pdf.addImage(doc.logo, imgType, margin, y, 20, 20); // Logo (20x20mm)
-            } catch (e) {
-                console.error("Erro ao adicionar imagem ao PDF:", e);
-            }
+    if (doc.logo && doc.logo.startsWith('data:image')) {
+        const imgType = doc.logo.substring(doc.logo.indexOf(':') + 6, doc.logo.indexOf(';')).toUpperCase();
+        try {
+            pdf.addImage(doc.logo, imgType, margin, y, 20, 20); 
+        } catch (e) {
+            console.error("Erro ao adicionar imagem ao PDF:", e);
         }
     }
 
@@ -484,7 +487,6 @@ function generateAndDownloadPDF(id) {
     pdf.text(`Emitido em: ${doc.dataHoraAtual}`, margin + 25, y + 15);
     y += 25;
     
-    // Linha separadora
     pdf.line(margin, y, margin + width, y);
     y += lineHeight * 0.5;
 
@@ -511,9 +513,8 @@ function generateAndDownloadPDF(id) {
     }
     pdf.text(`CNPJ/CPF: ${doc.docDestinatario}`, margin + halfWidth, y + lineHeight * (doc.empresaDestinatario ? 3 : 2));
     
-    y += lineHeight * 4; // Avança o Y para baixo da seção de dados
+    y += lineHeight * 4; 
     
-    // Linha separadora
     pdf.line(margin, y, margin + width, y);
     y += lineHeight;
 
@@ -522,7 +523,7 @@ function generateAndDownloadPDF(id) {
     // Cabeçalho da Tabela
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
-    pdf.setFillColor(240, 240, 240); // Cor de fundo do cabeçalho
+    pdf.setFillColor(240, 240, 240); 
     pdf.rect(margin, y - 5, width, 5, 'F');
     
     pdf.text("Produto/Serviço", margin + 1, y - 1);
@@ -544,7 +545,6 @@ function generateAndDownloadPDF(id) {
         pdf.text(`R$ ${subtotal}`, 175, y, { align: 'right' });
         y += lineHeight;
         
-        // Verifica se precisa de nova página
         if (y > 270) { 
             pdf.addPage();
             y = 15;
@@ -553,7 +553,7 @@ function generateAndDownloadPDF(id) {
     
     // 4. Rodapé e Total
     y += lineHeight * 0.5;
-    pdf.line(margin, y, margin + width, y); // Linha antes do total
+    pdf.line(margin, y, margin + width, y); 
     y += lineHeight;
 
     // Total
@@ -568,7 +568,6 @@ function generateAndDownloadPDF(id) {
     pdf.setFont('helvetica', 'normal');
     pdf.text(`Condições de Pagamento: ${doc.formaPagamento} (Prazo: ${doc.prazoPagamento || 'À vista'})`, margin, y);
     
-    // Data do Serviço (para ter a informação isolada na base do documento)
     y += lineHeight * 2;
     pdf.text(`Data do Serviço/Requisição: ${doc.dataServico}`, margin, y);
 
