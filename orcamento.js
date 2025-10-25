@@ -87,11 +87,15 @@ function saveEmitterData() {
         prestadorContato: document.getElementById('prestador-contato').value,
         prestadorDoc: document.getElementById('prestador-doc').value,
         validadeDias: document.getElementById('validade-dias').value,
-        // Novos campos
+        // Endereço
         prestadorCep: document.getElementById('prestador-cep').value,
         prestadorEndereco: document.getElementById('prestador-endereco').value,
         prestadorCidade: document.getElementById('prestador-cidade').value,
         prestadorEstado: document.getElementById('prestador-estado').value,
+        
+        // NOVO: Logo persistence
+        logoData: currentLogoData, // Base64 do arquivo
+        logoUrl: document.getElementById('logo-url').value, // URL
     };
     localStorage.setItem(EMITTER_STORAGE_KEY, JSON.stringify(emitterData));
 }
@@ -108,11 +112,28 @@ function loadEmitterData() {
     if (data.prestadorContato) document.getElementById('prestador-contato').value = data.prestadorContato;
     if (data.prestadorDoc) document.getElementById('prestador-doc').value = data.prestadorDoc;
     if (data.validadeDias) document.getElementById('validade-dias').value = data.validadeDias;
-    // Novos campos
+    // Endereço
     if (data.prestadorCep) document.getElementById('prestador-cep').value = data.prestadorCep;
     if (data.prestadorEndereco) document.getElementById('prestador-endereco').value = data.prestadorEndereco;
     if (data.prestadorCidade) document.getElementById('prestador-cidade').value = data.prestadorCidade;
     if (data.prestadorEstado) document.getElementById('prestador-estado').value = data.prestadorEstado;
+
+    // NOVO: Carregamento da Logo
+    currentLogoData = data.logoData || ''; // Prioriza o Base64
+    const logoUrlInput = document.getElementById('logo-url');
+    if (data.logoUrl) logoUrlInput.value = data.logoUrl;
+    
+    const logoSource = currentLogoData || data.logoUrl;
+    const preview = document.getElementById('logo-preview');
+    preview.innerHTML = '';
+
+    if (logoSource) {
+        const img = document.createElement('img');
+        img.src = logoSource;
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = '100px';
+        preview.appendChild(img);
+    }
 }
 
 
@@ -142,7 +163,7 @@ function handleLogoFileUpload(event) {
     const file = event.target.files[0];
     const preview = document.getElementById('logo-preview');
     preview.innerHTML = '';
-    currentLogoData = '';
+    currentLogoData = ''; // Reseta o Base64
 
     if (file) {
         if (!file.type.startsWith('image/')) {
@@ -159,6 +180,9 @@ function handleLogoFileUpload(event) {
             img.style.maxWidth = '100%';
             img.style.maxHeight = '100px';
             preview.appendChild(img);
+            
+            // NOVO: Salva imediatamente o Base64 no local storage após upload
+            saveEmitterData(); 
         };
         reader.readAsDataURL(file);
     }
@@ -168,7 +192,7 @@ function handleLogoFileUpload(event) {
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logo-file').addEventListener('change', handleLogoFileUpload);
     
-    // Carrega os dados do Emissor ao carregar a página
+    // Carrega os dados do Emissor e Logo ao carregar a página
     loadEmitterData(); 
 
     // Listeners para preenchimento de CEP
@@ -178,6 +202,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cliente-cep').addEventListener('blur', (e) => {
         fetchAddressByCep(e.target.value, 'cliente-endereco', 'cliente-cidade', 'cliente-estado');
     });
+    // Listener para a URL da logo, para que também seja salva ao mudar o foco
+    document.getElementById('logo-url').addEventListener('change', saveEmitterData);
+
 
     // Atualiza os totais e datas ao carregar e em mudanças
     updateTotals();
@@ -312,7 +339,8 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
         return; 
     }
     
-    // Salva os dados do Prestador (Emissor) antes de salvar o documento
+    // Salva os dados do Prestador (Emissor) e Logo antes de salvar o documento
+    // Isso garante que a logo mais recente (ou a URL mais recente) seja persistida
     saveEmitterData(); 
 
     // Processamento dos dados
@@ -329,15 +357,16 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
     dataValidade.setDate(dataValidade.getDate() + validadeDias);
     
     const logoUrl = document.getElementById('logo-url').value;
-    const finalLogoData = currentLogoData || logoUrl || '';
+    // Usa o Base64 (currentLogoData) se existir, senão usa a URL
+    const finalLogoData = currentLogoData || logoUrl || ''; 
     
     const newDocument = {
         id: documentId ? documentId : Date.now().toString(),
         tipo: 'ORCAMENTO',
         dataEmissao: dataEmissao.toISOString().split('T')[0], // Salva ISO para reconstituição
         dataValidade: dataValidade.toISOString().split('T')[0],
-        logo: finalLogoData,
-        
+        logo: finalLogoData, // Salva o Base64 ou URL no documento
+
         // Dados do Prestador
         prestadorNome: document.getElementById('prestador-nome').value,
         prestadorEmail: document.getElementById('prestador-email').value,
@@ -397,14 +426,15 @@ function clearForm(form) {
     form.removeAttribute('data-editing-id');
     document.getElementById('save-btn').textContent = 'Salvar Orçamento (C/U)';
     
-    // LIMPA O ESTADO GLOBAL
+    // LIMPA O ESTADO GLOBAL do documento atual, mas a logo não é resetada
+    // porque será carregada novamente logo abaixo.
     currentFormItems = [];
-    currentLogoData = '';
+    // Não reseta currentLogoData aqui, pois loadEmitterData irá redefini-la
     document.getElementById('logo-preview').innerHTML = '';
     updateItemsTable();
     updateTotals(); // Reinicia os displays de totais/datas
 
-    // Recarrega os dados do Prestador após o reset do formulário
+    // Recarrega os dados do Prestador e Logo após o reset do formulário
     loadEmitterData(); 
 }
 
@@ -445,14 +475,17 @@ function editDocument(id) {
     document.getElementById('prazo-dias').value = doc.prazoDias;
     document.getElementById('forma-pagamento').value = doc.formaPagamento;
     
-    // LOGO
+    // LOGO: Carrega a logo salva neste documento (temporariamente), 
+    // mas a próxima submissão salvará a logo persistida no localStorage
     document.getElementById('logo-file').value = '';
     currentLogoData = '';
     const preview = document.getElementById('logo-preview');
     preview.innerHTML = '';
+    
     if (doc.logo) {
         if (doc.logo.startsWith('data:image')) {
-            currentLogoData = doc.logo;
+            // Se for Base64 (arquivo)
+            currentLogoData = doc.logo; 
             const img = document.createElement('img');
             img.src = currentLogoData;
             img.style.maxWidth = '100%';
@@ -460,9 +493,18 @@ function editDocument(id) {
             preview.appendChild(img);
             document.getElementById('logo-url').value = ''; 
         } else {
+            // Se for URL
             document.getElementById('logo-url').value = doc.logo;
+            const img = document.createElement('img');
+            img.src = doc.logo;
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100px';
+            preview.appendChild(img);
         }
     }
+    
+    // NOTA: A logo carregada na edição NÃO sobrescreve a logo persistida,
+    // a menos que o usuário clique em salvar ou faça upload/mude a URL.
 
     // ITENS
     currentFormItems = doc.items || [];

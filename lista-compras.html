@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Compras - Gerador de Documentos</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos CSS específicos para esta página */
+        .item-list-section h3 .total-display {
+            font-size: 1.2em;
+            padding: 5px 10px;
+            margin-left: 10px;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: white;
+            float: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="navbar">
+            <a href="index.html" class="app-title">Gerador Doc PRO</a>
+            
+            <nav>
+                <ul class="nav-links" id="nav-links">
+                    <li><a href="orcamento.html">Orçamento</a></li>
+                    <li><a href="lista-compras.html">Lista de Compras</a></li>
+                    <li><a href="requisicao-compra.html">Requisição de Compra</a></li>
+                    <li><a href="ordem-servico.html">Ordem de Serviço</a></li>
+                    <li><a href="recibo-entrega.html">Recibo de Entrega</a></li>
+                    <li><a href="modelo-generico.html">Modelo Genérico</a></li>
+                </ul>
+            </nav>
+            <div class="hamburger" id="hamburger">&#9776;</div>
+        </div>
+    </header>
+
+    <main>
+        <form id="shopping-list-form" class="card">
+            <h2>Nova Lista de Compras</h2>
+
+            <fieldset>
+                <legend>Detalhes (Opcional)</legend>
+                <div class="inline-fields">
+                    <div class="field-group">
+                        <label for="list-name">Nome da Lista:</label>
+                        <input type="text" id="list-name" placeholder="Ex: Compras da Semana">
+                    </div>
+                    <div class="field-group">
+                        <label for="supermarket">Supermercado:</label>
+                        <input type="text" id="supermarket" placeholder="Ex: Atacadão ou Loja X">
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Adicionar Item</legend>
+                <div class="field-group">
+                    <label for="item-product">Produto:</label>
+                    <input type="text" id="item-product" placeholder="Ex: Leite Integral" required> 
+                </div>
+
+                <div class="inline-fields four-cols">
+                    <div class="field-group">
+                        <label for="item-quantity">Quantidade (Unidades):</label>
+                        <input type="number" id="item-quantity" min="0" value="1"> 
+                    </div>
+                    <div class="field-group">
+                        <label for="item-weight">Peso (Kg ou Litros):</label>
+                        <input type="number" id="item-weight" step="0.01" min="0" value="0.00"> 
+                    </div>
+                    <div class="field-group">
+                        <label for="item-price">Preço/Unidade ou Kg (R$):</label>
+                        <input type="number" id="item-price" step="0.01" min="0.01" value="0.01" required> 
+                    </div>
+                </div>
+
+                <button type="button" id="add-item-btn" class="btn btn-add">Adicionar Item</button>
+                <small style="display: block; margin-top: 10px;">* O Total do Produto será calculado somando (Quantidade * Preço) + (Peso * Preço).</small>
+            </fieldset>
+
+            <section class="card item-list-section">
+                <h3>Resumo dos Itens <span id="grand-total-display" class="total-display">R$ 0,00</span></h3>
+                <div class="table-responsive">
+                    <table id="items-table">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th class="text-right">Qtd</th>
+                                <th class="text-right">Peso</th>
+                                <th class="text-right">Preço Unit/Kg</th>
+                                <th class="text-right">Total do Item</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </section>
+            
+            <div class="form-actions">
+                <button type="submit" id="save-btn" class="btn btn-primary">Salvar Lista (C/U)</button>
+                <button type="button" id="clear-form-btn" class="btn btn-secondary">Limpar Formulário</button>
+            </div>
+        </form>
+
+        <section id="lista-documentos" class="card">
+            <h2>Listas Salvas</h2>
+            <ul id="document-list">
+                </ul>
+        </section>
+
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="lista-compras.js"></script>
+    <script>
+        // Lógica do menu hambúrguer (duplicação necessária para HTMLs separados)
+        document.getElementById('hamburger').addEventListener('click', function() {
+            const navLinks = document.getElementById('nav-links');
+            navLinks.classList.toggle('active');
+        });
+    </script>
+</body>
+</html>
