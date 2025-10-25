@@ -2,6 +2,7 @@
 :root {
     --primary-color: #004c8c; /* Azul Marinho Escuro */
     --secondary-color: #6c757d; /* Cinza Sóbrio */
+    --accent-color: #007bb6; /* Azul Médio */
     --success-color: #28a745; 
     --danger-color: #dc3545;
     --background-light: #f4f7f6;
@@ -18,29 +19,87 @@
 body {
     font-family: 'Roboto', Arial, sans-serif;
     margin: 0;
-    padding: var(--spacing-unit);
+    padding-top: 60px; /* Espaço para o fixed navbar */
     background-color: var(--background-light);
     color: var(--font-color);
     line-height: 1.6;
 }
 
 header {
-    text-align: center;
-    margin-bottom: var(--spacing-unit) * 1.5;
+    background: var(--card-background);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
 }
 
-h1 {
+/* Título da Página */
+.app-title {
     color: var(--primary-color);
     font-weight: 900;
-    font-size: 1.8em;
+    font-size: 1.5em;
+    padding: 10px 15px;
+    display: block;
 }
+
+/* ==================== 2. NAVEGAÇÃO ==================== */
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px;
+}
+
+.nav-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: none; /* Escondido por padrão (Mobile-First) */
+    flex-direction: column;
+    position: absolute;
+    top: 60px; /* Abaixo do header */
+    left: 0;
+    width: 100%;
+    background-color: var(--card-background);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.nav-links.active {
+    display: flex;
+}
+
+.nav-links li a {
+    display: block;
+    padding: 15px;
+    text-decoration: none;
+    color: var(--font-color);
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.3s;
+}
+
+.nav-links li a:hover {
+    background-color: #f0f0f0;
+    color: var(--primary-color);
+}
+
+.hamburger {
+    font-size: 24px;
+    cursor: pointer;
+    display: block; /* Visível em mobile */
+    padding: 10px;
+    color: var(--primary-color);
+}
+
+/* ==================== 3. LAYOUT PRINCIPAL E CARDS ==================== */
 
 main {
     max-width: 900px;
-    margin: 0 auto;
+    margin: 20px auto;
+    padding: 0 var(--spacing-unit);
 }
-
-/* ==================== 2. COMPONENTES ==================== */
 
 .card {
     background: var(--card-background);
@@ -98,10 +157,14 @@ input:focus, select:focus {
 .inline-fields {
     display: flex;
     flex-direction: column; /* Pilha em mobile */
-    gap: var(--spacing-unit) / 2;
+    gap: var(--spacing-unit);
 }
 
-/* Botões */
+.inline-fields .field-group {
+    flex-grow: 1;
+}
+
+/* Botões com Gradientes */
 .btn {
     padding: 12px 15px;
     border: none;
@@ -115,24 +178,23 @@ input:focus, select:focus {
     margin-top: 5px; 
 }
 
-/* Gradientes para botões */
 .btn-primary { 
     color: white; 
-    background: linear-gradient(135deg, #004c8c, #007bb6); 
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color)); 
     box-shadow: 0 4px 6px rgba(0, 76, 140, 0.3);
 }
 .btn-primary:hover { 
-    background: linear-gradient(135deg, #007bb6, #004c8c); 
+    background: linear-gradient(135deg, var(--accent-color), var(--primary-color)); 
     box-shadow: 0 6px 8px rgba(0, 76, 140, 0.4);
 }
 
 .btn-secondary { 
     color: white; 
-    background: linear-gradient(135deg, #6c757d, #a1aab3); 
+    background: linear-gradient(135deg, var(--secondary-color), #a1aab3); 
     box-shadow: 0 4px 6px rgba(108, 117, 125, 0.3);
 }
 .btn-secondary:hover { 
-    background: linear-gradient(135deg, #a1aab3, #6c757d); 
+    background: linear-gradient(135deg, #a1aab3, var(--secondary-color)); 
 }
 
 .btn-add {
@@ -141,6 +203,11 @@ input:focus, select:focus {
 }
 .btn-add:hover {
     background-color: #1e7e34;
+}
+
+.btn-danger {
+    color: white;
+    background-color: var(--danger-color);
 }
 
 .btn-action {
@@ -152,21 +219,21 @@ input:focus, select:focus {
 
 .form-actions {
     display: flex;
-    flex-direction: column; /* Pilha em mobile */
-    gap: var(--spacing-unit);
+    flex-direction: column; 
+    gap: var(--spacing-unit) / 2;
     margin-top: var(--spacing-unit);
 }
 
-/* ==================== 3. TABELA DE ITENS ==================== */
+/* ==================== 4. TABELA DE ITENS ==================== */
 .table-responsive {
     overflow-x: auto;
 }
 
 #items-table {
     width: 100%;
-    min-width: 600px; /* Para garantir que a tabela seja legível em mobile */
+    min-width: 600px; 
     border-collapse: collapse;
-    margin-top: 15px;
+    margin-top: var(--spacing-unit);
     font-size: 0.9em;
 }
 
@@ -205,10 +272,27 @@ input:focus, select:focus {
     text-align: right;
 }
 
-/* Linha de Total na Tabela */
 #items-table .total-row td {
     border-top: 2px solid var(--primary-color);
     background-color: #f0f8ff !important;
+}
+
+.final-info-group {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid var(--primary-color);
+    border-radius: 6px;
+    background-color: #f0f8ff;
+}
+
+.final-info-group p {
+    margin: 5px 0;
+    font-size: 1.1em;
+}
+
+.final-info-group strong {
+    font-weight: 700;
+    color: var(--primary-color);
 }
 
 /* Lista de Documentos Salvos */
@@ -224,7 +308,7 @@ input:focus, select:focus {
     margin-bottom: 8px;
     border-radius: 4px;
     display: flex;
-    flex-direction: column; /* Pilha em mobile */
+    flex-direction: column; 
     gap: 10px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
@@ -233,6 +317,9 @@ input:focus, select:focus {
     flex-grow: 1;
     font-size: 0.95em;
     font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 #document-list li .actions {
@@ -243,35 +330,54 @@ input:focus, select:focus {
 }
 
 #document-list li .actions .btn {
-    width: auto;
     flex-grow: 1;
-    min-width: 120px;
-    margin: 0; /* Remove margem extra dos botões */
+    min-width: 100px;
+    margin: 0; 
 }
 
-.logo-preview {
-    max-width: 100px;
-    max-height: 100px;
-    margin-top: 10px;
-    border: 1px dashed var(--border-color);
-    padding: 5px;
-    display: inline-block;
-    vertical-align: top;
-}
-.logo-preview img {
-    max-width: 100%;
-    height: auto;
-    display: block;
-}
-
-/* ==================== 4. MEDIA QUERY (Desktop/Tablet) ==================== */
+/* ==================== 5. MEDIA QUERY (Desktop/Tablet) ==================== */
 @media (min-width: 768px) {
-    h1 {
-        font-size: 2.5em;
+    body {
+        padding-top: 0; 
+    }
+
+    header {
+        position: static;
+    }
+    
+    .navbar {
+        display: block;
+        padding: 0;
+    }
+
+    .app-title {
+        display: none;
+    }
+
+    .nav-links {
+        position: static;
+        flex-direction: row;
+        box-shadow: none;
+        display: flex;
+        justify-content: center;
+        width: auto;
+    }
+
+    .nav-links li a {
+        border-bottom: none;
+        border-left: 1px solid var(--border-color);
+        padding: 10px 20px;
+    }
+    .nav-links li:last-child a {
+        border-right: 1px solid var(--border-color);
+    }
+    
+    .hamburger {
+        display: none;
     }
     
     .inline-fields {
-        flex-direction: row; /* Lado a lado em desktop */
+        flex-direction: row; 
     }
     
     .form-actions {
@@ -293,7 +399,6 @@ input:focus, select:focus {
     }
 
     #document-list li .actions .btn {
-        width: auto;
         flex-grow: 0;
         min-width: 80px;
     }

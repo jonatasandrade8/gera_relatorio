@@ -10,147 +10,37 @@
 <body>
 
     <header>
-        <h1>Gerador de Documentos Estático (CRUD)</h1>
-        <p>Notas de Serviço, Requisições e Ordens com persistência LocalStorage.</p>
+        <div class="navbar">
+            <a href="index.html" class="app-title">Gerador Doc PRO</a>
+            
+            <nav>
+                <ul class="nav-links" id="nav-links">
+                    <li><a href="orcamento.html">Orçamento</a></li>
+                    <li><a href="lista-compras.html">Lista de Compras</a></li>
+                    <li><a href="requisicao-compra.html">Requisição de Compra</a></li>
+                    <li><a href="ordem-servico.html">Ordem de Serviço</a></li>
+                    <li><a href="recibo-entrega.html">Recibo de Entrega</a></li>
+                    <li><a href="modelo-generico.html">Modelo Genérico</a></li>
+                </ul>
+            </nav>
+            <div class="hamburger" id="hamburger">&#9776;</div>
+        </div>
     </header>
 
     <main>
-        <div class="controls card">
-            <label for="tipo-documento">Selecione o Tipo de Documento:</label>
-            <select id="tipo-documento" required>
-                <option value="NOTA_SERVICO">Nota de Serviço (NS)</option>
-                <option value="REQUISICAO_COMPRA">Requisição de Compra (RC)</option>
-                <option value="ORDEM_SERVICO">Ordem de Serviço (OS)</option>
-                <option value="NOTA_ENTREGA">Nota de Entrega de Mercadoria (NE)</option>
-            </select>
+        <div class="card" style="text-align: center;">
+            <h2>Bem-vindo ao Gerador de Documentos Profissional</h2>
+            <p>Selecione um dos modelos de documento no menu acima para começar a gerenciar e gerar seus documentos em formato CRUD (LocalStorage).</p>
         </div>
-
-        <form id="document-form" class="card">
-            <h2>Dados Gerais do Documento</h2>
-            
-            <div class="field-group">
-                <label>Data/Hora Atual: <input type="text" id="data-hora-atual" readonly></label>
-            </div>
-
-            <fieldset>
-                <legend>Logomarca</legend>
-                <div class="field-group">
-                    <label for="logo-url">Opção 1: URL da Logomarca:</label>
-                    <input type="url" id="logo-url" placeholder="Ex: https://meu-site.com/logo.png">
-                </div>
-
-                <div class="field-group">
-                    <label for="logo-file">Opção 2: Enviar Arquivo de Imagem (.png, .jpg):</label>
-                    <input type="file" id="logo-file" accept="image/*">
-                    <small>Se um arquivo for enviado, ele é convertido para Base64 e priorizado.</small>
-                    <div id="logo-preview" class="logo-preview"></div>
-                </div>
-            </fieldset>
-            
-            <fieldset>
-                <legend>Dados do Emissor/Prestador</legend>
-                <div class="field-group">
-                    <label for="nome-prestador">Nome do Prestador/Emissor:</label>
-                    <input type="text" id="nome-prestador" required>
-                </div>
-                <div class="field-group">
-                    <label for="nome-empresa">Nome da Empresa Emissora:</label>
-                    <input type="text" id="nome-empresa" required>
-                </div>
-                <div class="field-group">
-                    <label for="cnpj">CNPJ/CPF:</label>
-                    <input type="text" id="cnpj" required>
-                </div>
-                <div class="field-group">
-                    <label for="data-servico">Data da Prestação/Requisição:</label>
-                    <input type="date" id="data-servico" required>
-                </div>
-            </fieldset>
-
-            <fieldset id="destinatario-fields">
-                <legend id="destinatario-legend">Dados do Contratante</legend>
-                <div class="field-group">
-                    <label for="nome-destinatario">Nome Completo:</label>
-                    <input type="text" id="nome-destinatario" required>
-                </div>
-                <div class="field-group">
-                    <label for="empresa-destinatario">Empresa (Opcional):</label>
-                    <input type="text" id="empresa-destinatario">
-                </div>
-                <div class="field-group">
-                    <label for="doc-destinatario">CNPJ/CPF:</label>
-                    <input type="text" id="doc-destinatario" required>
-                </div>
-            </fieldset>
-
-
-            <fieldset>
-                <legend>Adicionar Item</legend>
-                <div class="field-group">
-                    <label for="item-produto">Nome do Produto/Serviço:</label>
-                    <input type="text" id="item-produto" placeholder="Ex: Manutenção Preventiva" required>
-                </div>
-
-                <div class="inline-fields">
-                    <div class="field-group">
-                        <label for="item-quantidade">Quantidade:</label>
-                        <input type="number" id="item-quantidade" min="1" value="1" required>
-                    </div>
-                    <div class="field-group">
-                        <label for="item-preco">Preço Unitário (R$):</label>
-                        <input type="number" id="item-preco" step="0.01" min="0.01" value="0.01" required>
-                    </div>
-                </div>
-
-                <button type="button" id="add-item-btn" class="btn btn-add">Adicionar Item</button>
-            </fieldset>
-
-            <section class="card item-list-section">
-                <h3>Resumo dos Itens <span id="grand-total-display" class="total-display">R$ 0,00</span></h3>
-                <div class="table-responsive">
-                    <table id="items-table">
-                        <thead>
-                            <tr>
-                                <th>Produto/Serviço</th>
-                                <th class="text-right">Qtd</th>
-                                <th class="text-right">Preço Unit.</th>
-                                <th class="text-right">Subtotal</th>
-                                <th>Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <fieldset>
-                <legend>Condições de Pagamento</legend>
-                <div class="field-group">
-                    <label for="forma-pagamento">Forma de Pagamento:</label>
-                    <input type="text" id="forma-pagamento" required>
-                </div>
-                <div class="field-group">
-                    <label for="prazo-pagamento">Prazo de Pagamento (Opcional):</label>
-                    <input type="date" id="prazo-pagamento">
-                </div>
-            </fieldset>
-            
-            <div class="form-actions">
-                <button type="submit" id="save-btn" class="btn btn-primary">Salvar Documento (C/U)</button>
-                <button type="button" id="clear-form-btn" class="btn btn-secondary">Limpar Formulário</button>
-            </div>
-        </form>
-
-        <section id="lista-documentos" class="card">
-            <h2>Documentos Salvos</h2>
-            <ul id="document-list">
-                </ul>
-        </section>
-
-    </main>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="script.js"></script>
+        
+        </main>
+    
+    <script>
+        // Lógica do menu hambúrguer para mobile
+        document.getElementById('hamburger').addEventListener('click', function() {
+            const navLinks = document.getElementById('nav-links');
+            navLinks.classList.toggle('active');
+        });
+    </script>
 </body>
 </html>
