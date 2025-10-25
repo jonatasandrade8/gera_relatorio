@@ -1,5 +1,7 @@
 // ==================== CONFIGURAÇÕES E UTILIDADES ====================
 const LOCAL_STORAGE_KEY = 'orcamento_generator_data';
+// NOVO: Chave de armazenamento para os dados do Emissor (Prestador)
+const EMITTER_STORAGE_KEY = 'orcamento_emitter_data'; 
 
 // VARIÁVEIS GLOBAIS
 let currentFormItems = []; 
@@ -28,7 +30,60 @@ function saveDocuments(documents) {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(documents));
 }
 
+// ==================== LÓGICA DE PERSISTÊNCIA DO EMISSOR ====================
+
+function saveEmitterData() {
+    const emitterData = {
+        prestadorNome: document.getElementById('prestador-nome').value,
+        prestadorEmail: document.getElementById('prestador-email').value,
+        prestadorContato: document.getElementById('prestador-contato').value,
+        prestadorDoc: document.getElementById('prestador-doc').value,
+        validadeDias: document.getElementById('validade-dias').value,
+        prestadorCidade: document.getElementById('prestador-cidade').value,
+        prestadorEstado: document.getElementById('prestador-estado').value,
+    };
+    localStorage.setItem(EMITTER_STORAGE_KEY, JSON.stringify(emitterData));
+}
+
+function loadEmitterData() {
+    const storedData = localStorage.getItem(EMITTER_STORAGE_KEY);
+    if (!storedData) return;
+
+    const data = JSON.parse(storedData);
+    
+    // Preenche os campos do Prestador
+    if (data.prestadorNome) document.getElementById('prestador-nome').value = data.prestadorNome;
+    if (data.prestadorEmail) document.getElementById('prestador-email').value = data.prestadorEmail;
+    if (data.prestadorContato) document.getElementById('prestador-contato').value = data.prestadorContato;
+    if (data.prestadorDoc) document.getElementById('prestador-doc').value = data.prestadorDoc;
+    if (data.validadeDias) document.getElementById('validade-dias').value = data.validadeDias;
+    if (data.prestadorCidade) document.getElementById('prestador-cidade').value = data.prestadorCidade;
+    if (data.prestadorEstado) document.getElementById('prestador-estado').value = data.prestadorEstado;
+}
+
+
 // ==================== LÓGICA DE LOGO BASE64/URL ====================
+
+/**
+ * Função utilitária assíncrona para carregar uma imagem (Base64 ou URL)
+ * e obter seu objeto e dimensões.
+ */
+function loadImage(src) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous'; // Útil para URLs externas
+        
+        img.onload = () => {
+            resolve(img);
+        };
+        img.onerror = () => {
+            console.error("Erro ao carregar imagem para PDF. Verifique a URL ou o arquivo.");
+            resolve(null); // Resolve com null em caso de erro
+        };
+        img.src = src;
+    });
+}
+
 function handleLogoFileUpload(event) {
     const file = event.target.files[0];
     const preview = document.getElementById('logo-preview');
@@ -59,6 +114,9 @@ function handleLogoFileUpload(event) {
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logo-file').addEventListener('change', handleLogoFileUpload);
     
+    // NOVO: Carrega os dados do Emissor ao carregar a página
+    loadEmitterData(); 
+
     // Atualiza os totais e datas ao carregar e em mudanças
     updateTotals();
     
@@ -111,8 +169,7 @@ function addItem() {
     const quantidade = parseFloat(quantidadeInput.value);
     const valor = parseFloat(valorInput.value);
 
-    // A validação de preenchimento dos itens só é feita AQUI, ao tentar adicionar,
-    // e não ao tentar salvar o formulário.
+    // A validação de preenchimento dos itens só é feita AQUI, ao tentar adicionar.
     if (!produto || isNaN(quantidade) || quantidade <= 0 || isNaN(valor) || valor <= 0) {
         alert("Por favor, preencha todos os campos do item corretamente (quantidade e valor devem ser positivos) ANTES de adicionar.");
         return;
@@ -193,8 +250,8 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
         return; 
     }
     
-    // O BLOCO DE VALIDAÇÃO DE currentFormItems.length FOI REMOVIDO AQUI,
-    // permitindo salvar orçamentos com 0 itens.
+    // NOVO: Salva os dados do Prestador (Emissor) antes de salvar o documento
+    saveEmitterData(); 
 
     // Processamento dos dados
     const form = e.target;
@@ -262,6 +319,8 @@ document.getElementById('document-form').addEventListener('submit', function(e) 
     
     // Limpa o formulário e estado
     clearForm(form);
+    // Recarrega os dados do Emissor (já que o clearForm chamou reset())
+    loadEmitterData();
 });
 
 // Limpar Formulário
@@ -280,6 +339,9 @@ function clearForm(form) {
     document.getElementById('logo-preview').innerHTML = '';
     updateItemsTable();
     updateTotals(); // Reinicia os displays de totais/datas
+
+    // NOVO: Recarrega os dados do Prestador após o reset do formulário
+    loadEmitterData(); 
 }
 
 
@@ -389,9 +451,13 @@ function deleteDocument(id) {
 }
 
 
-// ==================== FUNÇÃO DE EXPORTAÇÃO PDF ====================
+// ==================== FUNÇÃO DE EXPORTAÇÃO PDF APRIMORADA ====================
 
-function generateAndDownloadPDF(id) {
+/**
+ * Gera e baixa o PDF, com lógica aprimorada para redimensionamento da logo.
+ * Tornada assíncrona para aguardar o carregamento da imagem.
+ */
+async function generateAndDownloadPDF(id) {
     const documents = getDocuments();
     const doc = documents.find(d => d.id === id);
     if (!doc) return;
@@ -399,28 +465,77 @@ function generateAndDownloadPDF(id) {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4'); 
     
-    let y = 15;
-    const lineHeight = 6;
     const margin = 15;
     const width = 180;
-    
-    // Título, ID e Logo
-    pdf.setFontSize(22);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text("ORÇAMENTO", margin, y); 
-    pdf.setFontSize(10);
-    pdf.text(`ID: #${doc.id.substring(8)}`, margin, y + 5); 
+    const lineHeight = 6;
+    let y = 15;
+    let logoHeight = 0; // Altura que a logo irá ocupar
+    const MAX_LOGO_HEIGHT_MM = 30; // Altura máxima permitida para a logo no PDF
+    const MAX_LOGO_WIDTH_MM = 60;  // Largura máxima permitida
 
-    if (doc.logo && doc.logo.startsWith('data:image')) {
-        const imgType = doc.logo.substring(doc.logo.indexOf(':') + 6, doc.logo.indexOf(';')).toUpperCase();
-        pdf.addImage(doc.logo, imgType, 175, 10, 20, 20); 
+    // 1. Carregamento e Posicionamento da Logo
+    if (doc.logo) {
+        const imageObj = await loadImage(doc.logo);
+        
+        if (imageObj) {
+            const originalWidth = imageObj.width;
+            const originalHeight = imageObj.height;
+            const aspectRatio = originalWidth / originalHeight;
+
+            let finalWidth = 0;
+            let finalHeight = 0;
+
+            // Determina as dimensões finais com base nas restrições
+            if (originalHeight > MAX_LOGO_HEIGHT_MM * (originalWidth / MAX_LOGO_WIDTH_MM)) {
+                // Restrito pela altura
+                finalHeight = MAX_LOGO_HEIGHT_MM;
+                finalWidth = finalHeight * aspectRatio;
+            } else {
+                // Restrito pela largura
+                finalWidth = MAX_LOGO_WIDTH_MM;
+                finalHeight = finalWidth / aspectRatio;
+            }
+
+            // Garante que não ultrapasse a área (apenas para segurança)
+            if (finalWidth > MAX_LOGO_WIDTH_MM) {
+                finalWidth = MAX_LOGO_WIDTH_MM;
+                finalHeight = finalWidth / aspectRatio;
+            }
+            if (finalHeight > MAX_LOGO_HEIGHT_MM) {
+                 finalHeight = MAX_LOGO_HEIGHT_MM;
+                 finalWidth = finalHeight * aspectRatio;
+            }
+            
+            // Adiciona a imagem no canto superior direito (195mm - margem)
+            const xPos = 195 - margin - finalWidth; 
+            const yPos = margin;
+            
+            const imgType = doc.logo.startsWith('data:image') ? 
+                            doc.logo.substring(doc.logo.indexOf('/') + 1, doc.logo.indexOf(';')).toUpperCase() : 
+                            'JPEG'; // Tenta JPEG para URL, mas jsPDF deve ser inteligente
+
+            pdf.addImage(imageObj, imgType, xPos, yPos, finalWidth, finalHeight);
+            logoHeight = finalHeight; // Altura real ocupada
+        }
     }
     
-    y = 35;
+    // 2. Título e ID (Posicionamento ajustado pela Logo)
+    const titleY = logoHeight > 0 ? (margin + logoHeight * 0.5) : margin; // Centraliza o título verticalmente com a logo, se houver
+    
+    pdf.setFontSize(22);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("ORÇAMENTO", margin, titleY); 
+    pdf.setFontSize(10);
+    pdf.text(`ID: #${doc.id.substring(8)}`, margin, titleY + 5); 
+
+    // Ajusta o ponto de partida 'y' para o restante do documento
+    y = Math.max(y + 15, margin + logoHeight + 5);
+    y = Math.max(y, 45); // Garante que comece pelo menos em 45mm, se a logo for muito pequena
+
     pdf.line(margin, y, margin + width, y);
     y += lineHeight;
 
-    // 2. Dados do Prestador e Cliente
+    // 3. Dados do Prestador e Cliente
     const halfWidth = width / 2;
 
     // Coluna 1: Prestador
@@ -441,7 +556,7 @@ function generateAndDownloadPDF(id) {
     pdf.text(`Nome: ${doc.clienteNome}`, margin + halfWidth, y + lineHeight);
     pdf.text(`Contato: ${doc.clienteContato}`, margin + halfWidth, y + lineHeight * 2);
     if (doc.clienteEmail) pdf.text(`Email: ${doc.clienteEmail}`, margin + halfWidth, y + lineHeight * 3);
-    if (doc.clienteDoc) pdf.text(`CPF/CNPJ: ${doc.clienteDoc}`, margin + halfWidth, y + lineHeight * 4);
+    if (doc.clienteDoc) pdf.text(`Doc: ${doc.clienteDoc}`, margin + halfWidth, y + lineHeight * 4);
     if (doc.clienteCidade) pdf.text(`Local: ${doc.clienteCidade}/${doc.clienteEstado}`, margin + halfWidth, y + lineHeight * 5);
     
     y += lineHeight * 6; 
@@ -449,7 +564,7 @@ function generateAndDownloadPDF(id) {
     pdf.line(margin, y, margin + width, y);
     y += lineHeight;
 
-    // 3. Tabela de Itens
+    // 4. Tabela de Itens
     
     // Cabeçalho da Tabela
     pdf.setFontSize(10);
@@ -488,7 +603,7 @@ function generateAndDownloadPDF(id) {
         y += lineHeight * 2;
     }
     
-    // 4. Rodapé e Totais
+    // 5. Rodapé e Totais
     y += lineHeight * 0.5;
     pdf.line(margin, y, margin + width, y); 
     y += lineHeight;
@@ -500,7 +615,7 @@ function generateAndDownloadPDF(id) {
     pdf.text(`R$ ${parseFloat(doc.totalBruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 175, y, { align: 'right' });
     y += lineHeight;
 
-    pdf.text(`DESCONTO À VISTA (${doc.descontoPercentual}%):`, 140, y, { align: 'right' });
+    pdf.text(`TOTAL C/ DESCONTO À VISTA (${doc.descontoPercentual}%):`, 140, y, { align: 'right' });
     pdf.text(`R$ ${parseFloat(doc.totalDesconto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 175, y, { align: 'right' });
     y += lineHeight * 2;
     
