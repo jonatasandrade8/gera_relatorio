@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recibo/Nota de Entrega - Gerador de Documentos</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos CSS específicos para esta página */
+        .item-list-section h3 .total-display {
+            font-size: 1.2em;
+            padding: 5px 10px;
+            margin-left: 10px;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: white;
+            float: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .text-right {
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="navbar">
+            <a href="index.html" class="app-title">Gerador Doc PRO</a>
+            
+            <nav>
+                <ul class="nav-links" id="nav-links">
+                    <li><a href="orcamento.html">Orçamento</a></li>
+                    <li><a href="lista-compras.html">Lista de Compras</a></li>
+                    <li><a href="requisicao-compra.html">Requisição de Compra</a></li>
+                    <li><a href="ordem-servico.html">Ordem de Serviço</a></li>
+                    <li><a href="recibo-entrega.html">Recibo de Entrega</a></li>
+                    <li><a href="modelo-generico.html">Modelo Genérico</a></li>
+                </ul>
+            </nav>
+            <div class="hamburger" id="hamburger">&#9776;</div>
+        </div>
+    </header>
+
+    <main>
+        <form id="delivery-form" class="card">
+            <h2>Novo Recibo de Entrega</h2>
+
+            <div class="inline-fields two-cols">
+                <fieldset>
+                    <legend>Dados do Emissor</legend>
+                    <div class="field-group">
+                        <label for="emitter-company">Empresa Emissora:</label>
+                        <input type="text" id="emitter-company" required placeholder="Ex: Logística Rápida LTDA">
+                    </div>
+                    <div class="field-group">
+                        <label for="emitter-contact">Contato (Tel/Email):</label>
+                        <input type="text" id="emitter-contact" placeholder="Ex: (84) 99999-0000">
+                    </div>
+                    <div class="field-group">
+                        <label for="emitter-address">Endereço:</label>
+                        <input type="text" id="emitter-address" placeholder="Ex: Rua A, 123, Bairro Centro">
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Dados do Cliente/Destinatário</legend>
+                    <div class="field-group">
+                        <label for="client-company">Empresa Cliente:</label>
+                        <input type="text" id="client-company" required placeholder="Ex: Comércio Silva e Filhos">
+                    </div>
+                    <div class="field-group">
+                        <label for="client-contact">Contato (Tel/Email):</label>
+                        <input type="text" id="client-contact" placeholder="Ex: (84) 88888-1111">
+                    </div>
+                    <div class="field-group">
+                        <label for="client-address">Endereço de Entrega:</label>
+                        <input type="text" id="client-address" required placeholder="Ex: Av. Principal, 456, Bairro Industrial">
+                    </div>
+                </fieldset>
+            </div>
+
+            <fieldset>
+                <legend>Adicionar Item Entregue</legend>
+                <div class="field-group">
+                    <label for="item-product">Produto/Descrição:</label>
+                    <input type="text" id="item-product" placeholder="Ex: 50x Caixa de Papelão" required> 
+                </div>
+
+                <div class="inline-fields three-cols">
+                    <div class="field-group">
+                        <label for="item-quantity">Quantidade:</label>
+                        <input type="number" id="item-quantity" min="1" value="1" required> 
+                    </div>
+                    <div class="field-group">
+                        <label for="item-price">Valor Unitário (R$):</label>
+                        <input type="number" id="item-price" step="0.01" min="0.00" value="0.00"> 
+                        <small>Deixe 0.00 se for apenas nota de entrega sem valor comercial/fiscal.</small>
+                    </div>
+                </div>
+
+                <button type="button" id="add-item-btn" class="btn btn-add">Adicionar Item</button>
+            </fieldset>
+
+            <section class="card item-list-section">
+                <h3>Resumo dos Itens <span id="grand-total-display" class="total-display">R$ 0,00</span></h3>
+                <div class="table-responsive">
+                    <table id="items-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Produto/Descrição</th>
+                                <th class="text-right">Qtd</th>
+                                <th class="text-right">Valor Unitário</th>
+                                <th class="text-right">Subtotal</th>
+                                <th class="text-center">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </section>
+            
+            <div class="form-actions">
+                <button type="submit" id="save-btn" class="btn btn-primary">Salvar Recibo (C/U)</button>
+                <button type="button" id="clear-form-btn" class="btn btn-secondary">Limpar Formulário</button>
+            </div>
+        </form>
+
+        <section id="lista-documentos" class="card">
+            <h2>Recibos Salvos</h2>
+            <ul id="document-list">
+                </ul>
+        </section>
+
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="recibo-entrega.js"></script>
+    <script>
+        // Lógica do menu hambúrguer (duplicação necessária para HTMLs separados)
+        document.getElementById('hamburger').addEventListener('click', function() {
+            const navLinks = document.getElementById('nav-links');
+            navLinks.classList.toggle('active');
+        });
+    </script>
+</body>
+</html>

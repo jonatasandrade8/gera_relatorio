@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Requisição de Compra - Gerador de Documentos</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos CSS específicos para esta página */
+        .item-list-section h3 .total-display {
+            font-size: 1.2em;
+            padding: 5px 10px;
+            margin-left: 10px;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: white;
+            float: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .signature-box {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #ccc;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="navbar">
+            <a href="index.html" class="app-title">Gerador Doc PRO</a>
+            
+            <nav>
+                <ul class="nav-links" id="nav-links">
+                    <li><a href="orcamento.html">Orçamento</a></li>
+                    <li><a href="lista-compras.html">Lista de Compras</a></li>
+                    <li><a href="requisicao-compra.html">Requisição de Compra</a></li>
+                    <li><a href="ordem-servico.html">Ordem de Serviço</a></li>
+                    <li><a href="recibo-entrega.html">Recibo de Entrega</a></li>
+                    <li><a href="modelo-generico.html">Modelo Genérico</a></li>
+                </ul>
+            </nav>
+            <div class="hamburger" id="hamburger">&#9776;</div>
+        </div>
+    </header>
+
+    <main>
+        <form id="requisition-form" class="card">
+            <h2>Nova Requisição de Compra</h2>
+
+            <fieldset>
+                <legend>Dados da Requisição e Solicitante (Opcional)</legend>
+                <div class="field-group">
+                    <label for="company-name">Nome da Empresa:</label>
+                    <input type="text" id="company-name" placeholder="Ex: Tech Soluções LTDA">
+                </div>
+                
+                <div class="inline-fields">
+                    <div class="field-group">
+                        <label for="requester-name">Nome do Solicitante/Requisitante:</label>
+                        <input type="text" id="requester-name" placeholder="Ex: João da Silva">
+                    </div>
+                    <div class="field-group">
+                        <label for="contact-info">Contato do Solicitante (Tel/Email):</label>
+                        <input type="text" id="contact-info" placeholder="Ex: (84) 99999-0000">
+                    </div>
+                </div>
+                
+                <div class="field-group">
+                    <label for="reason">Motivo da Compra/Observações (Opcional):</label>
+                    <textarea id="reason" rows="3" placeholder="Ex: Reposição de estoque urgente; Material para projeto X."></textarea>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Adicionar Item</legend>
+                
+                <div class="inline-fields three-cols">
+                    <div class="field-group">
+                        <label for="item-sector">Setor:</label>
+                        <select id="item-sector" required>
+                            <option value="">Selecione o Setor</option>
+                            <option value="Mercearia">Mercearia</option>
+                            <option value="Hortifruti">Hortifruti</option>
+                            <option value="Frios">Frios</option>
+                            <option value="Carnes">Carnes</option>
+                            <option value="Limpeza">Produtos de Limpeza</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label for="item-product">Produto/Serviço:</label>
+                        <input type="text" id="item-product" placeholder="Ex: Cabo de Rede CAT6" required> 
+                    </div>
+                    <div class="field-group">
+                        <label for="item-quantity">Quantidade Necessária:</label>
+                        <input type="number" id="item-quantity" min="1" value="1" required> 
+                    </div>
+                </div>
+
+                <button type="button" id="add-item-btn" class="btn btn-add">Adicionar Item</button>
+            </fieldset>
+
+            <section class="card item-list-section">
+                <h3>Resumo dos Itens</h3>
+                <div class="table-responsive">
+                    <table id="items-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Setor</th>
+                                <th>Produto/Serviço</th>
+                                <th class="text-right">Quantidade</th>
+                                <th class="text-center">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </section>
+            
+            <div class="form-actions">
+                <button type="submit" id="save-btn" class="btn btn-primary">Salvar Requisição (C/U)</button>
+                <button type="button" id="clear-form-btn" class="btn btn-secondary">Limpar Formulário</button>
+            </div>
+        </form>
+
+        <section id="lista-documentos" class="card">
+            <h2>Requisições Salvas</h2>
+            <ul id="document-list">
+                </ul>
+        </section>
+
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="requisicao-compra.js"></script>
+    <script>
+        // Lógica do menu hambúrguer (duplicação necessária para HTMLs separados)
+        document.getElementById('hamburger').addEventListener('click', function() {
+            const navLinks = document.getElementById('nav-links');
+            navLinks.classList.toggle('active');
+        });
+    </script>
+</body>
+</html>
