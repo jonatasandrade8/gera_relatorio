@@ -11,7 +11,7 @@ let currentRequesterDetails = {
     companyName: '',
     requesterName: '',
     contactInfo: '',
-    logoBase64: '' // NOVO: Armazena o Base64 da logo
+    logoBase64: '' // Armazena o Base64 da logo
 };
 
 // Função auxiliar para obter documentos salvos
@@ -40,7 +40,6 @@ function formatDate(date) {
 
 // ==================== LÓGICA DE PERSISTÊNCIA E LOGOMARCA ====================
 
-// Funções para lidar com a persistência da Logomarca (Copiado do Recibo de Entrega)
 function handleLogoUpload(file) {
     return new Promise((resolve) => {
         if (!file) {
@@ -55,25 +54,26 @@ function handleLogoUpload(file) {
     });
 }
 
+// EXPOSTA GLOBALMENTE: Salva detalhes e a logo Base64 no Local Storage
 async function saveRequesterDetails() {
     currentRequesterDetails.companyName = document.getElementById('company-name').value;
     currentRequesterDetails.requesterName = document.getElementById('requester-name').value;
     currentRequesterDetails.contactInfo = document.getElementById('contact-info').value;
 
-    // NOVO: Lógica da Logo
     const logoFile = document.getElementById('requester-logo').files[0];
     if (logoFile) {
         currentRequesterDetails.logoBase64 = await handleLogoUpload(logoFile);
     } 
-    // Se não houver novo arquivo, o logoBase64 existente é mantido
 
     localStorage.setItem(REQUESTER_DETAILS_KEY, JSON.stringify(currentRequesterDetails));
     
-    // Limpa o campo de arquivo para que ele não seja carregado novamente na próxima submissão
     if (logoFile) {
         document.getElementById('requester-logo').value = '';
     }
+    
+    loadRequesterDetails(); // Atualiza a preview
 }
+window.saveRequesterDetails = saveRequesterDetails; 
 
 function loadRequesterDetails() {
     const storedData = localStorage.getItem(REQUESTER_DETAILS_KEY);
@@ -87,7 +87,7 @@ function loadRequesterDetails() {
     if (data.requesterName) document.getElementById('requester-name').value = data.requesterName;
     if (data.contactInfo) document.getElementById('contact-info').value = data.contactInfo;
 
-    // NOVO: Pré-visualização da logo
+    // Pré-visualização da logo
     const preview = document.getElementById('logo-preview');
     if (data.logoBase64) {
         preview.src = data.logoBase64;
@@ -103,118 +103,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Carrega os dados do requisitante e a logo
     loadRequesterDetails(); 
     
-    // Listeners para salvar detalhes (ex: ao sair do campo)
+    // Listeners para salvar detalhes de texto (ex: ao sair do campo)
     document.getElementById('company-name').addEventListener('blur', saveRequesterDetails);
     document.getElementById('requester-name').addEventListener('blur', saveRequesterDetails);
     document.getElementById('contact-info').addEventListener('blur', saveRequesterDetails);
-    
-    // Listener especial para salvar a logo assim que o arquivo for selecionado/processado
-    document.getElementById('requester-logo').addEventListener('change', async function() {
-        await saveRequesterDetails();
-        loadRequesterDetails(); // Recarrega para atualizar a preview com o Base64 persistido
-    });
 
     renderDocumentList();
     updateItemsTable();
+    
+    // Configuração dos Eventos de Formulário e Ações
+    document.getElementById('add-item-btn').addEventListener('click', addItem);
+    document.getElementById('requisition-form').addEventListener('submit', handleSubmit);
+    document.getElementById('clear-form-btn').addEventListener('click', () => clearForm(document.getElementById('requisition-form')));
 });
 
-// ... (Funções addItem, removeItem, updateItemsTable - permanecem inalteradas, exceto se você não tiver a última versão completa) ...
-
-// ==================== FUNÇÕES CRUD (CREATE, READ, UPDATE) ====================
-
-document.getElementById('requisition-form').addEventListener('submit', async function(e) { // Tornar async
-    e.preventDefault();
-    
-    // Salva detalhes, incluindo a LOGO. PRECISA SER ASYNC AQUI!
-    await saveRequesterDetails(); 
-    loadRequesterDetails(); // Recarrega o Base64 atualizado para o objeto global
-
-    // A única validação obrigatória é a existência de itens
-    if (currentRequisitionItems.length === 0) {
-        alert('Adicione pelo menos um item à requisição antes de salvar.');
-        return;
-    }
-    
-    // Recarrega os dados (incluindo logo) do objeto global atualizado
-    // Note: usamos currentRequesterDetails, que foi atualizado por saveRequesterDetails e loadRequesterDetails
-
-    const form = e.target;
-    const documentId = form.dataset.editingId;
-    
-    const newDocument = {
-        id: documentId ? documentId : Date.now().toString(),
-        tipo: 'REQUISICAO_COMPRA',
-        dataCriacao: new Date().toISOString().split('T')[0],
-        
-        // Detalhes do Requisitante/Empresa (incluindo o logoBase64)
-        companyName: currentRequesterDetails.companyName,
-        requesterName: currentRequesterDetails.requesterName,
-        contactInfo: currentRequesterDetails.contactInfo,
-        reason: document.getElementById('reason').value,
-        logoBase64: currentRequesterDetails.logoBase64, // Inclui a logo Base64
-
-        // Itens
-        items: [...currentRequisitionItems],
-    };
-
-    let documents = getDocuments();
-
-    if (documentId) {
-        documents = documents.map(doc => doc.id === documentId ? newDocument : doc);
-        alert('Requisição atualizada com sucesso!');
-        form.removeAttribute('data-editing-id');
-        document.getElementById('save-btn').textContent = 'Salvar Requisição (C/U)';
-    } else {
-        documents.push(newDocument);
-        alert('Requisição salva com sucesso!');
-    }
-    
-    saveDocuments(documents);
-    renderDocumentList();
-    
-    // Limpa o estado da tabela e prepara para nova lista
-    clearForm(form);
-});
-
-// ... (Funções clearForm, editDocument, renderDocumentList, deleteDocument - editDocument agora também carrega o logoBase64 e chama loadRequesterDetails para o preview) ...
-
-// UPDATE (Carregar dados para Edição)
-function editDocument(id) {
-    const documents = getDocuments();
-    const doc = documents.find(d => d.id === id);
-
-    if (!doc) {
-        alert('Documento não encontrado.');
-        return;
-    }
-
-    // Preenche detalhes do requisitante
-    document.getElementById('company-name').value = doc.companyName || '';
-    document.getElementById('requester-name').value = doc.requesterName || '';
-    document.getElementById('contact-info').value = doc.contactInfo || '';
-    document.getElementById('reason').value = doc.reason || '';
-    
-    // NOVO: Atualiza o objeto global de detalhes do requisitante com a logo
-    currentRequesterDetails.logoBase64 = doc.logoBase64 || '';
-    
-    // Salva e recarrega para atualizar a preview da logo
-    saveRequesterDetails(); 
-    loadRequesterDetails(); 
-
-    // ITENS
-    currentRequisitionItems = doc.items || [];
-    updateItemsTable(); 
-
-    // Seta estado de edição
-    const form = document.getElementById('requisition-form');
-    form.setAttribute('data-editing-id', id);
-    document.getElementById('save-btn').textContent = 'Atualizar Requisição (U)';
-    
-    window.scrollTo(0, 0); 
-}
-
-// Função para gerenciamento de itens (incluído para garantir a consistência no envio final)
-document.getElementById('add-item-btn').addEventListener('click', addItem);
+// ==================== FUNÇÕES DE GERENCIAMENTO DE ITENS (TABELA DINÂMICA) ====================
 
 function addItem() {
     const setorInput = document.getElementById('item-sector');
@@ -227,34 +130,29 @@ function addItem() {
     const unidade = unidadeInput.value; 
     const quantidade = parseInt(quantidadeInput.value);
 
-    // Validação de preenchimento (incluindo o setor e unidade)
+    // VALIDAÇÃO JS: ESSENCIAL APÓS REMOVER 'REQUIRED' DO HTML
     if (!setor || !produto || !unidade || isNaN(quantidade) || quantidade <= 0) {
         alert("Por favor, preencha todos os campos (Setor, Produto, Unidade e Quantidade) antes de adicionar.");
         return;
     }
 
-    const newItem = {
-        setor, 
-        produto,
-        unidade, 
-        quantidade
-    };
+    const newItem = { setor, produto, unidade, quantidade };
 
     currentRequisitionItems.push(newItem);
     updateItemsTable();
 
-    // Limpa campos para próxima inserção (mantém o setor)
     produtoInput.value = '';
-    // unidadeInput.value = 'UN'; 
     quantidadeInput.value = '1';
     produtoInput.focus();
 }
 
+// EXPOSTA GLOBALMENTE: Remove item da lista
 function removeItem(index) {
     if (!confirm('Tem certeza que deseja remover este item?')) return;
     currentRequisitionItems.splice(index, 1);
     updateItemsTable();
 }
+window.removeItem = removeItem; 
 
 function updateItemsTable() {
     const tableBody = document.querySelector('#items-table tbody');
@@ -274,12 +172,103 @@ function updateItemsTable() {
             <td>${item.produto}</td>
             <td>${item.unidade}</td>
             <td class="text-right">${item.quantidade}</td>
-            <td class="text-center"><button type="button" class="btn btn-action btn-danger" onclick="removeItem(${index})">Remover</button></td>
+            <td class="text-center"><button type="button" class="btn btn-action btn-danger" onclick="window.removeItem(${index})">Remover</button></td>
         `;
     });
 }
 
-// READ (Renderizar a Lista de Documentos)
+// ==================== FUNÇÕES CRUD (CREATE, READ, UPDATE) ====================
+
+async function handleSubmit(e) { 
+    e.preventDefault();
+    
+    // Garante que a logo base64 está no currentRequesterDetails ANTES de criar o documento
+    await saveRequesterDetails(); 
+    
+    // VALIDAÇÃO PRINCIPAL: Verifica se há itens na lista (corrigindo o problema do submit)
+    if (currentRequisitionItems.length === 0) {
+        alert('Adicione pelo menos um item à requisição antes de salvar.');
+        return;
+    }
+    
+    const form = e.target;
+    const documentId = form.dataset.editingId;
+    
+    const newDocument = {
+        id: documentId ? documentId : Date.now().toString(),
+        tipo: 'REQUISICAO_COMPRA',
+        dataCriacao: new Date().toISOString().split('T')[0],
+        
+        companyName: currentRequesterDetails.companyName,
+        requesterName: currentRequesterDetails.requesterName,
+        contactInfo: currentRequesterDetails.contactInfo,
+        reason: document.getElementById('reason').value,
+        logoBase64: currentRequesterDetails.logoBase64, 
+
+        items: [...currentRequisitionItems],
+    };
+
+    let documents = getDocuments();
+
+    if (documentId) {
+        documents = documents.map(doc => doc.id === documentId ? newDocument : doc);
+        alert('Requisição atualizada com sucesso!');
+        form.removeAttribute('data-editing-id');
+        document.getElementById('save-btn').textContent = 'Salvar Requisição (C/U)';
+    } else {
+        documents.push(newDocument);
+        alert('Requisição salva com sucesso!');
+    }
+    
+    saveDocuments(documents);
+    renderDocumentList();
+    
+    clearForm(form);
+}
+
+function clearForm(form) {
+    form.reset();
+    form.removeAttribute('data-editing-id');
+    document.getElementById('save-btn').textContent = 'Salvar Requisição (C/U)';
+    
+    currentRequisitionItems = [];
+    updateItemsTable();
+
+    loadRequesterDetails(); 
+}
+
+// EXPOSTA GLOBALMENTE: Carrega dados para edição
+function editDocument(id) {
+    const documents = getDocuments();
+    const doc = documents.find(d => d.id === id);
+
+    if (!doc) {
+        alert('Documento não encontrado.');
+        return;
+    }
+
+    document.getElementById('company-name').value = doc.companyName || '';
+    document.getElementById('requester-name').value = doc.requesterName || '';
+    document.getElementById('contact-info').value = doc.contactInfo || '';
+    document.getElementById('reason').value = doc.reason || '';
+    
+    currentRequesterDetails.logoBase64 = doc.logoBase64 || '';
+    
+    // Atualiza a persistência local e a preview
+    saveRequesterDetails(); 
+    loadRequesterDetails(); 
+
+    currentRequisitionItems = doc.items || [];
+    updateItemsTable(); 
+
+    const form = document.getElementById('requisition-form');
+    form.setAttribute('data-editing-id', id);
+    document.getElementById('save-btn').textContent = 'Atualizar Requisição (U)';
+    
+    window.scrollTo(0, 0); 
+}
+window.editDocument = editDocument;
+
 function renderDocumentList() {
     const list = document.getElementById('document-list');
     list.innerHTML = '';
@@ -298,18 +287,19 @@ function renderDocumentList() {
 
         li.innerHTML = `
             <div class="info">
-                <span><strong>REQ #${doc.id.substring(8)}</strong> - Empresa: ${empresaDisplay} | Solicitante: ${requisitanteDisplay}</span>
+                <span><strong>REQ #${doc.id.substring(8)}</strong> - Empresa: ${empresaDisplay} | Solicitante: ${requisanteDisplay}</span>
             </div>
             <div class="actions">
-                <button class="btn btn-action btn-primary" onclick="editDocument('${doc.id}')">Editar</button>
-                <button class="btn btn-action btn-danger" onclick="deleteDocument('${doc.id}')">Remover</button>
-                <button class="btn btn-action btn-primary" style="background: var(--success-color);" onclick="generateAndDownloadPDF('${doc.id}')">Baixar PDF</button>
+                <button class="btn btn-action btn-primary" onclick="window.editDocument('${doc.id}')">Editar</button>
+                <button class="btn btn-action btn-danger" onclick="window.deleteDocument('${doc.id}')">Remover</button>
+                <button class="btn btn-action btn-primary" style="background: var(--success-color);" onclick="window.generateAndDownloadPDF('${doc.id}')">Baixar PDF</button>
             </div>
         `;
         list.appendChild(li);
     });
 }
 
+// EXPOSTA GLOBALMENTE: Exclui documento
 function deleteDocument(id) {
     if (!confirm('Tem certeza que deseja excluir esta requisição de compra?')) return;
 
@@ -319,10 +309,12 @@ function deleteDocument(id) {
     renderDocumentList();
     alert('Requisição de compra excluída.');
 }
+window.deleteDocument = deleteDocument;
 
 
-// ==================== FUNÇÃO DE EXPORTAÇÃO PDF (MODIFICADA) ====================
+// ==================== FUNÇÃO DE EXPORTAÇÃO PDF ====================
 
+// EXPOSTA GLOBALMENTE: Gera e baixa o PDF
 function generateAndDownloadPDF(id) {
     const documents = getDocuments();
     const doc = documents.find(d => d.id === id);
@@ -337,35 +329,34 @@ function generateAndDownloadPDF(id) {
     let y = 15;
     
     // 1. Logomarca e Título
-    
-    const LOGO_HEIGHT = 20; // Altura máxima para a logo
-    const LOGO_WIDTH = 50;  // Largura máxima para a logo
-    const TITLE_START_Y = 15; // Posição inicial do topo
+    const LOGO_HEIGHT = 20; 
+    const LOGO_WIDTH = 50;  
+    const TITLE_START_Y = 15; 
+    let titleY = TITLE_START_Y;
 
     if (doc.logoBase64) {
         try {
             const imgData = doc.logoBase64;
-            const imgType = imgData.split(':')[1].split(';')[0].split('/')[1].toUpperCase(); // Ex: JPEG, PNG
+            const imgType = imgData.split(':')[1].split(';')[0].split('/')[1].toUpperCase(); 
 
-            // Posiciona a logo à esquerda, no topo
             pdf.addImage(imgData, imgType, margin, TITLE_START_Y, LOGO_WIDTH, LOGO_HEIGHT);
             
-            // Ajusta o 'y' para começar os dados da requisição após o espaço da logo
             y = TITLE_START_Y + LOGO_HEIGHT + 5; 
+            titleY = TITLE_START_Y + LOGO_HEIGHT / 2; 
 
         } catch (error) {
             console.error("Erro ao adicionar logomarca ao PDF:", error);
             y = TITLE_START_Y; 
+            titleY = TITLE_START_Y + 5;
         }
     } else {
         y = TITLE_START_Y; 
+        titleY = TITLE_START_Y + 5;
     }
     
     // Título
     pdf.setFontSize(24);
     pdf.setFont('helvetica', 'bold');
-    // Se houver logo, centraliza o título verticalmente ao lado dela. Se não, usa o topo.
-    const titleY = Math.max(y - 5, TITLE_START_Y + LOGO_HEIGHT / 2);
     pdf.text("REQUISIÇÃO DE COMPRA", margin + width / 2, titleY, { align: 'center' }); 
     
     pdf.setFontSize(10);
@@ -373,7 +364,6 @@ function generateAndDownloadPDF(id) {
     pdf.text(`ID: #${doc.id.substring(8)}`, margin + width, titleY - 5, { align: 'right' }); 
     pdf.text(`Data: ${formatDate(doc.dataCriacao)}`, margin + width, titleY + 2, { align: 'right' });
 
-    // Pula para a próxima seção
     y = y + lineHeight; 
 
     // 2. Detalhes do Requisitante/Empresa
@@ -385,7 +375,6 @@ function generateAndDownloadPDF(id) {
 
     pdf.setFont('helvetica', 'normal');
     
-    // Usa "Não Informado" ou a informação
     const company = doc.companyName || 'Não Informado';
     const requester = doc.requesterName || 'Não Informado';
     const contact = doc.contactInfo || 'Não Informado';
@@ -405,12 +394,9 @@ function generateAndDownloadPDF(id) {
 
 
     // 3. Agrupamento dos Itens por Setor
-    
     const groupedItems = doc.items.reduce((acc, item) => {
         const sector = item.setor || "Outros"; 
-        if (!acc[sector]) {
-            acc[sector] = [];
-        }
+        if (!acc[sector]) { acc[sector] = []; }
         acc[sector].push(item);
         return acc;
     }, {});
@@ -424,29 +410,24 @@ function generateAndDownloadPDF(id) {
     const tableHeaderColor = [220, 230, 240]; 
     const tableLineColor = [150, 150, 150]; 
     
-    // Definição de Largura das Colunas
     const colItem = 10;
-    const colProduto = 80; // Maior para caber a descrição
-    const colUnit = 25; // NOVO: Largura da unidade
-    const colQtd = 45 - colUnit; // Ajustado
+    const colProduto = 80; 
+    const colUnit = 25; 
     
     sectorsToPrint.forEach((sectorName) => {
         const items = groupedItems[sectorName];
         
-        // Se a próxima tabela for estourar o limite, cria uma nova página
-        // Estima 30mm para Título + Cabeçalho + pelo menos 2 itens
         if (y + 30 > 280) { 
             pdf.addPage();
             y = 15;
         }
 
-        // Título do Setor (Fonte Reduzida)
+        // Título do Setor
         pdf.setFontSize(11); 
         pdf.setFont('helvetica', 'bold');
         pdf.text(sectorName.toUpperCase(), margin, y);
-        y += lineHeight * 1.5; // Espaçamento aumentado para afastar da tabela
+        y += lineHeight * 1.5;
 
-        // Início da Tabela
         const tableStartY = y;
         let tableCurrentY = y;
         
@@ -459,7 +440,7 @@ function generateAndDownloadPDF(id) {
 
         pdf.text("Nº", margin + 2, tableCurrentY - 2);
         pdf.text("PRODUTO / SERVIÇO", margin + colItem, tableCurrentY - 2);
-        pdf.text("UN. MEDIDA", margin + colItem + colProduto, tableCurrentY - 2); // NOVO: Posição da Unidade
+        pdf.text("UN. MEDIDA", margin + colItem + colProduto, tableCurrentY - 2);
         pdf.text("QUANTIDADE", margin + width - 1, tableCurrentY - 2, { align: 'right' });
         tableCurrentY += lineHeight;
 
@@ -468,13 +449,12 @@ function generateAndDownloadPDF(id) {
         pdf.setFont('helvetica', 'normal');
         
         items.forEach((item, index) => {
-            // Se o item não couber, adiciona nova página e recria cabeçalho
             if (tableCurrentY > 270) { 
                 pdf.addPage();
                 tableCurrentY = 15 + headerHeight; 
                 tableStartY = 15;
                 
-                // Recria o Título do Setor
+                // Recria Título do Setor
                 pdf.setFontSize(11);
                 pdf.setFont('helvetica', 'bold');
                 pdf.text(sectorName.toUpperCase(), margin, tableCurrentY - lineHeight * 1.5);
@@ -494,10 +474,9 @@ function generateAndDownloadPDF(id) {
 
             pdf.text((index + 1).toString(), margin + 2, tableCurrentY);
             pdf.text(item.produto, margin + colItem, tableCurrentY);
-            pdf.text(item.unidade, margin + colItem + colProduto, tableCurrentY); // NOVO: Coluna da Unidade
+            pdf.text(item.unidade, margin + colItem + colProduto, tableCurrentY);
             pdf.text(item.quantidade.toString(), margin + width - 1, tableCurrentY, { align: 'right' });
             
-            // Linha fina de separação entre itens
             pdf.setLineWidth(0.1); 
             pdf.setDrawColor(tableLineColor[0], tableLineColor[1], tableLineColor[2]); 
             pdf.line(margin, tableCurrentY + lineHeight * 0.5, margin + width, tableCurrentY + lineHeight * 0.5);
@@ -513,22 +492,19 @@ function generateAndDownloadPDF(id) {
         
         pdf.rect(margin, tableStartY - headerHeight, width, tableTotalHeight, 'S', borderRadius); 
 
-        // Desenha linha mais grossa separando o cabeçalho dos itens
         pdf.setLineWidth(0.4); 
         pdf.line(margin, tableStartY - headerHeight + headerHeight, margin + width, tableStartY - headerHeight + headerHeight); 
         
-        y = tableCurrentY + lineHeight * 2; // Espaçamento maior entre tabelas de setor
+        y = tableCurrentY + lineHeight * 2; 
     });
     
-    // 5. Campo para Assinatura (Fica fixo na parte inferior da última página ou em uma nova)
-    
-    // Garante que a assinatura apareça pelo menos 30mm acima do rodapé (280)
+    // 5. Campo para Assinatura
     if (y + 30 > 280) {
         pdf.addPage();
-        y = 15; // Nova margem superior
+        y = 15; 
     }
     
-    const signatureY = Math.max(y + 10, 250); // Garante que não suba demais ou desça do limite
+    const signatureY = Math.max(y + 10, 250); 
 
     // Linha de assinatura
     pdf.setDrawColor(0, 0, 0);
@@ -542,3 +518,4 @@ function generateAndDownloadPDF(id) {
 
     pdf.save(`REQUISICAO_COMPRA_${doc.id.substring(8)}.pdf`);
 }
+window.generateAndDownloadPDF = generateAndDownloadPDF;

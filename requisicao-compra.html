@@ -102,13 +102,13 @@
                 
                 <div class="field-group">
                     <label for="item-product">Produto/Serviço a Ser Comprado:</label>
-                    <input type="text" id="item-product" placeholder="Ex: Cabo de Rede CAT6" required> 
+                    <input type="text" id="item-product" placeholder="Ex: Cabo de Rede CAT6"> 
                 </div>
 
                 <div class="inline-fields three-cols">
                     <div class="field-group">
                         <label for="item-sector">Setor:</label>
-                        <select id="item-sector" required>
+                        <select id="item-sector">
                             <option value="">Selecione o Setor</option>
                             <option value="Mercearia">Mercearia</option>
                             <option value="Hortifruti">Hortifruti</option>
@@ -120,7 +120,7 @@
                     </div>
                     <div class="field-group">
                         <label for="item-unit">Unidade de Medida:</label>
-                        <select id="item-unit" required>
+                        <select id="item-unit">
                             <option value="UN">Unidade</option>
                             <option value="KG">Kg</option>
                             <option value="G">Gramas</option>
@@ -131,7 +131,7 @@
                     </div>
                     <div class="field-group">
                         <label for="item-quantity">Quantidade Necessária:</label>
-                        <input type="number" id="item-quantity" min="1" value="1" required> 
+                        <input type="number" id="item-quantity" min="1" value="1"> 
                     </div>
                 </div>
 
@@ -175,7 +175,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="requisicao-compra.js"></script>
     <script>
-        // Lógica do menu hambúrguer (duplicação necessária para HTMLs separados)
+        // Lógica do menu hambúrguer (mantida no HTML para simplicidade)
         document.getElementById('hamburger').addEventListener('click', function() {
             const navLinks = document.getElementById('nav-links');
             navLinks.classList.toggle('active');
@@ -196,6 +196,11 @@
             } else {
                 preview.src = '#';
                 preview.style.display = 'none';
+            }
+            
+            // Chama a função de persistência do JS após a mudança do arquivo (assíncrono)
+            if (window.saveRequesterDetails) {
+                 window.saveRequesterDetails();
             }
         });
     </script>

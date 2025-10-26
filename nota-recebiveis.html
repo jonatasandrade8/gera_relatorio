@@ -4,33 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nota de Recebíveis - Gerador de Documentos</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css"> 
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         /* Estilos CSS específicos para esta página */
-        .total-summary {
-            margin-top: 20px;
-            padding: 15px;
-            border: 2px solid var(--primary-color);
-            border-radius: 8px;
-            text-align: center;
-            background-color: #f7faff;
-        }
-        .total-summary h3 {
-            margin: 0 0 10px 0;
-            color: var(--primary-color);
-        }
-        .total-summary span {
-            font-size: 2em;
-            font-weight: 700;
-            color: var(--success-color);
-            display: block;
+        .item-list-section h3 .total-display {
+            font-size: 1.2em;
+            padding: 5px 10px;
+            margin-left: 10px;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: white;
+            float: right;
         }
         .text-center {
             text-align: center;
         }
         .text-right {
             text-align: right;
+        }
+        .signature-box {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #ccc;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -43,11 +42,11 @@
             <nav>
                 <ul class="nav-links" id="nav-links">
                     <li><a href="orcamento.html">Orçamento</a></li>
-                    <li><a href="lista-compras.html">Carrinho de Compras</a></li>
+                    <li><a href="lista-compras.html">Lista de Compras</a></li>
                     <li><a href="requisicao-compra.html">Requisição de Compra</a></li>
-                    <li><a href="nota-recebiveis.html">Nota de Recebíveis</a></li>
+                    <li><a href="ordem-servico.html">Ordem de Serviço</a></li>
                     <li><a href="recibo-entrega.html">Recibo de Entrega</a></li>
-                    
+                    <li><a href="nota-recebiveis.html">Nota de Recebíveis</a></li>
                 </ul>
             </nav>
             <div class="hamburger" id="hamburger">&#9776;</div>
@@ -59,59 +58,80 @@
             <h2>Nova Nota de Recebíveis</h2>
 
             <fieldset>
-                <legend>Identificação da Nota</legend>
+                <legend>Dados da Nota</legend>
+                <div class="inline-fields">
+                    <div class="field-group">
+                        <label for="debtor-name">Nome do Devedor/Cliente:</label>
+                        <input type="text" id="debtor-name" placeholder="Ex: João da Silva" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="note-number">Nº da Nota/Fatura:</label>
+                        <input type="text" id="note-number" placeholder="Ex: NF-000123 / Fatura #456" required>
+                    </div>
+                </div>
+                
+                <div class="inline-fields">
+                    <div class="field-group">
+                        <label for="issue-date">Data de Emissão:</label>
+                        <input type="date" id="issue-date" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="due-date">Data de Vencimento:</label>
+                        <input type="date" id="due-date" required>
+                    </div>
+                </div>
+
                 <div class="field-group">
-                    <label for="note-name">Nome da Nota/Referência:</label>
-                    <input type="text" id="note-name" required placeholder="Ex: Recebíveis do Mês de Outubro">
+                    <label for="issuer-name">Nome da Empresa Credora (Emitente):</label>
+                    <input type="text" id="issuer-name" placeholder="Ex: Tech Serviços LTDA" required>
+                </div>
+                
+                <div class="field-group">
+                    <label for="observations">Observações/Instruções de Pagamento (Opcional):</label>
+                    <textarea id="observations" rows="3" placeholder="Ex: Pagamento via PIX; Multa de 2% após o vencimento."></textarea>
                 </div>
             </fieldset>
 
             <fieldset>
-                <legend>Valores a Receber (Crédito)</legend>
-                <div class="inline-fields two-cols">
-                    <div class="field-group">
-                        <label for="credit-description">Descrição:</label>
-                        <input type="text" id="credit-description" placeholder="Ex: Serviço Prestado Cliente X" required> 
-                    </div>
-                    <div class="field-group">
-                        <label for="credit-value">Valor (R$):</label>
-                        <input type="number" id="credit-value" step="0.01" min="0.01" required> 
-                    </div>
+                <legend>Adicionar Item/Serviço Recebível</legend>
+                
+                <div class="field-group">
+                    <label for="item-description">Descrição do Produto/Serviço:</label>
+                    <input type="text" id="item-description" placeholder="Ex: Desenvolvimento de Website" > 
                 </div>
-                <button type="button" id="add-credit-btn" class="btn btn-add">Adicionar Valor a Receber</button>
-            </fieldset>
 
-            <fieldset>
-                <legend>Valores a Descontar (Débito) - Opcional</legend>
-                <div class="inline-fields two-cols">
+                <div class="inline-fields three-cols">
                     <div class="field-group">
-                        <label for="debit-description">Descrição:</label>
-                        <input type="text" id="debit-description" placeholder="Ex: Taxa de Serviço Bancário"> 
+                        <label for="item-value">Valor Unitário (R$):</label>
+                        <input type="number" id="item-value" min="0" value="0.00" step="0.01">
                     </div>
                     <div class="field-group">
-                        <label for="debit-value">Valor (R$):</label>
-                        <input type="number" id="debit-value" step="0.01" min="0.01"> 
+                        <label for="item-quantity">Quantidade:</label>
+                        <input type="number" id="item-quantity" min="1" value="1"> 
+                    </div>
+                    <div class="field-group">
+                        <label for="item-total">Total (Calculado):</label>
+                        <input type="text" id="item-total" value="0.00" readonly disabled> 
                     </div>
                 </div>
-                <button type="button" id="add-debit-btn" class="btn btn-secondary">Adicionar Desconto</button>
+
+                <button type="button" id="add-item-btn" class="btn btn-add">Adicionar Item</button>
             </fieldset>
 
             <section class="card item-list-section">
-                <h3>Resumo dos Valores</h3>
-                
-                <div class="total-summary">
-                    <h3>VALOR TOTAL LÍQUIDO</h3>
-                    <span id="liquid-total-display">R$ 0,00</span>
-                </div>
-                
-                <div class="table-responsive" style="margin-top: 20px;">
+                <h3>
+                    Resumo dos Itens 
+                    <span class="total-display" id="grand-total-display">R$ 0,00</span>
+                </h3>
+                <div class="table-responsive">
                     <table id="items-table">
                         <thead>
                             <tr>
                                 <th>Item</th>
-                                <th>Tipo</th>
                                 <th>Descrição</th>
-                                <th class="text-right">Valor (R$)</th>
+                                <th class="text-right">Valor Unit. (R$)</th>
+                                <th class="text-right">Qtd</th>
+                                <th class="text-right">Total (R$)</th>
                                 <th class="text-center">Ação</th>
                             </tr>
                         </thead>
@@ -138,11 +158,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="nota-recebiveis.js"></script>
     <script>
-        // Lógica do menu hambúrguer (duplicação necessária para HTMLs separados)
+        // Lógica do menu hambúrguer (mantida no HTML para simplicidade)
         document.getElementById('hamburger').addEventListener('click', function() {
             const navLinks = document.getElementById('nav-links');
             navLinks.classList.toggle('active');
         });
+        
+        // Lógica para cálculo do total do item (para feedback visual)
+        const itemValueInput = document.getElementById('item-value');
+        const itemQuantityInput = document.getElementById('item-quantity');
+        const itemTotalInput = document.getElementById('item-total');
+
+        function calculateItemTotal() {
+            const value = parseFloat(itemValueInput.value) || 0;
+            const quantity = parseInt(itemQuantityInput.value) || 0;
+            const total = (value * quantity).toFixed(2);
+            itemTotalInput.value = total;
+        }
+
+        itemValueInput.addEventListener('input', calculateItemTotal);
+        itemQuantityInput.addEventListener('input', calculateItemTotal);
+        
+        calculateItemTotal(); // Inicializa o cálculo
     </script>
 </body>
 </html>

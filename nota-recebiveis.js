@@ -1,22 +1,21 @@
 // ==================== CONFIGURAÇÕES E UTILIDADES ====================
-const LOCAL_STORAGE_KEY = 'receivables_note_data';
+const LOCAL_STORAGE_KEY = 'receivables_note_data'; 
+const DEBTOR_DETAILS_KEY = 'receivables_debtor_details'; 
 
 // VARIÁVEIS GLOBAIS
-// Cada item terá: { id, tipo: 'CREDIT'|'DEBIT', descricao, valor }
-let currentItems = []; 
+let currentReceivableItems = []; 
+let currentDebtorDetails = {}; // Não precisamos da logo aqui, mas manteremos o padrão de persistência
 
-// Função auxiliar para obter documentos salvos
+// Funções Auxiliares
 function getDocuments() {
     const docs = localStorage.getItem(LOCAL_STORAGE_KEY);
     return docs ? JSON.parse(docs) : [];
 }
 
-// Função auxiliar para salvar documentos
 function saveDocuments(documents) {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(documents));
 }
 
-// Função auxiliar para formatar datas (dd/mm/yyyy)
 function formatDate(date) {
     if (!date) return '--/--/----';
     const d = new Date(date);
@@ -29,170 +28,190 @@ function formatDate(date) {
     return `${day}/${month}/${year}`;
 }
 
-// ==================== INICIALIZAÇÃO E EVENTOS DE DATA/TOTAIS ====================
+function formatCurrency(value) {
+    return `R$ ${parseFloat(value).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+}
+
+// ==================== LÓGICA DE PERSISTÊNCIA (DADOS DO RECEBEDOR) ====================
+
+function saveDebtorDetails() {
+    currentDebtorDetails.debtorName = document.getElementById('debtor-name').value;
+    currentDebtorDetails.noteNumber = document.getElementById('note-number').value;
+    currentDebtorDetails.issuerName = document.getElementById('issuer-name').value;
+
+    localStorage.setItem(DEBTOR_DETAILS_KEY, JSON.stringify(currentDebtorDetails));
+}
+window.saveDebtorDetails = saveDebtorDetails; 
+
+function loadDebtorDetails() {
+    const storedData = localStorage.getItem(DEBTOR_DETAILS_KEY);
+    if (!storedData) return;
+
+    const data = JSON.parse(storedData);
+    currentDebtorDetails = data;
+    
+    if (data.debtorName) document.getElementById('debtor-name').value = data.debtorName;
+    if (data.noteNumber) document.getElementById('note-number').value = data.noteNumber;
+    if (data.issuerName) document.getElementById('issuer-name').value = data.issuerName;
+}
+
+// ==================== INICIALIZAÇÃO E EVENTOS ====================
 document.addEventListener('DOMContentLoaded', () => {
-    updateTotals();
+    loadDebtorDetails(); 
+    
+    // Listeners para salvar detalhes de texto (ex: ao sair do campo)
+    document.getElementById('debtor-name').addEventListener('blur', saveDebtorDetails);
+    document.getElementById('note-number').addEventListener('blur', saveDebtorDetails);
+    document.getElementById('issuer-name').addEventListener('blur', saveDebtorDetails);
+
     renderDocumentList();
     updateItemsTable();
-});
-
-// Calcula Totais Finais
-function updateTotals() {
-    const totalCredit = currentItems
-        .filter(item => item.tipo === 'CREDIT')
-        .reduce((sum, item) => sum + parseFloat(item.valor), 0);
-        
-    const totalDebit = currentItems
-        .filter(item => item.tipo === 'DEBIT')
-        .reduce((sum, item) => sum + parseFloat(item.valor), 0);
-
-    const liquidTotal = totalCredit - totalDebit;
-
-    // Atualiza o display principal (total líquido)
-    document.getElementById('liquid-total-display').textContent = `R$ ${liquidTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     
-    return { totalCredit, totalDebit, liquidTotal };
-}
+    // Configuração dos Eventos de Formulário e Ações
+    document.getElementById('add-item-btn').addEventListener('click', addItem);
+    document.getElementById('receivable-form').addEventListener('submit', handleSubmit);
+    document.getElementById('clear-form-btn').addEventListener('click', () => clearForm(document.getElementById('receivable-form')));
+});
 
 // ==================== FUNÇÕES DE GERENCIAMENTO DE ITENS (TABELA DINÂMICA) ====================
 
-document.getElementById('add-credit-btn').addEventListener('click', () => addItem('CREDIT'));
-document.getElementById('add-debit-btn').addEventListener('click', () => addItem('DEBIT'));
+function calculateGrandTotal() {
+    const total = currentReceivableItems.reduce((sum, item) => sum + (item.value * item.quantity), 0);
+    document.getElementById('grand-total-display').textContent = formatCurrency(total);
+    return total;
+}
 
-function addItem(type) {
-    const descriptionInput = document.getElementById(type === 'CREDIT' ? 'credit-description' : 'debit-description');
-    const valueInput = document.getElementById(type === 'CREDIT' ? 'credit-value' : 'debit-value');
+function addItem() {
+    const descriptionInput = document.getElementById('item-description');
+    const valueInput = document.getElementById('item-value');
+    const quantityInput = document.getElementById('item-quantity'); 
 
-    const descricao = descriptionInput.value.trim();
-    let valor = parseFloat(valueInput.value);
+    const description = descriptionInput.value.trim();
+    const value = parseFloat(valueInput.value);
+    const quantity = parseInt(quantityInput.value);
 
-    // Validação de preenchimento
-    if (!descricao || isNaN(valor) || valor <= 0) {
-        alert("Por favor, preencha a Descrição e o Valor (deve ser maior que zero) antes de adicionar.");
+    // VALIDAÇÃO JS: ESSENCIAL APÓS REMOVER 'REQUIRED' DO HTML
+    if (!description || isNaN(value) || value < 0 || isNaN(quantity) || quantity <= 0) {
+        alert("Por favor, preencha a Descrição, o Valor (não-negativo) e a Quantidade (maior que zero) antes de adicionar.");
         return;
     }
 
-    const newItem = {
-        id: Date.now().toString() + Math.random().toString(36).substring(2, 5), // ID único
-        tipo: type,
-        descricao,
-        valor: valor.toFixed(2),
-    };
+    const newItem = { description, value, quantity };
 
-    currentItems.push(newItem);
+    currentReceivableItems.push(newItem);
     updateItemsTable();
 
-    // Limpa campos para próxima inserção
     descriptionInput.value = '';
-    valueInput.value = '';
+    valueInput.value = '0.00';
+    quantityInput.value = '1';
+    
+    // Atualiza o campo total calculado
+    document.getElementById('item-total').value = '0.00';
+    
     descriptionInput.focus();
 }
 
-function removeItem(id) {
+// EXPOSTA GLOBALMENTE: Remove item da lista
+function removeItem(index) {
     if (!confirm('Tem certeza que deseja remover este item?')) return;
-    
-    currentItems = currentItems.filter(item => item.id !== id);
+    currentReceivableItems.splice(index, 1);
     updateItemsTable();
 }
+window.removeItem = removeItem; 
 
 function updateItemsTable() {
     const tableBody = document.querySelector('#items-table tbody');
     tableBody.innerHTML = '';
-    
-    if (currentItems.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center" style="color: var(--secondary-color);">Nenhum valor adicionado.</td></tr>';
-        updateTotals(); 
-        return;
+
+    if (currentReceivableItems.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center" style="color: var(--secondary-color);">Nenhum item adicionado à nota.</td></tr>';
     }
 
-    currentItems.forEach((item, index) => {
+    currentReceivableItems.forEach((item, index) => {
+        const itemTotal = item.value * item.quantity;
         const row = tableBody.insertRow();
-        const valorFormatado = parseFloat(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-        const tipoLabel = item.tipo === 'CREDIT' ? 'Crédito' : 'Débito';
-        const color = item.tipo === 'CREDIT' ? 'var(--success-color)' : 'var(--danger-color)';
-
+        
         row.innerHTML = `
             <td class="text-center">${index + 1}</td>
-            <td><strong style="color: ${color};">${tipoLabel}</strong></td>
-            <td>${item.descricao}</td>
-            <td class="text-right" style="color: ${color}; font-weight: 700;">R$ ${valorFormatado}</td>
-            <td class="text-center"><button type="button" class="btn btn-action btn-danger" onclick="removeItem('${item.id}')">Remover</button></td>
+            <td>${item.description}</td>
+            <td class="text-right">${formatCurrency(item.value)}</td>
+            <td class="text-right">${item.quantity}</td>
+            <td class="text-right">${formatCurrency(itemTotal)}</td>
+            <td class="text-center"><button type="button" class="btn btn-action btn-danger" onclick="window.removeItem(${index})">Remover</button></td>
         `;
     });
     
-    updateTotals(); // Recalcula totais finais
+    calculateGrandTotal();
 }
 
 // ==================== FUNÇÕES CRUD (CREATE, READ, UPDATE) ====================
 
-document.getElementById('receivable-form').addEventListener('submit', function(e) {
+async function handleSubmit(e) { 
     e.preventDefault();
-
-    if (!e.target.checkValidity()) {
+    
+    // Validação do formulário principal (campos obrigatórios no HTML)
+    const form = e.target;
+    if (!form.checkValidity()) {
+        form.reportValidity(); // Permite que o navegador mostre o erro nos campos obrigatórios
         return;
     }
 
-    if (currentItems.length === 0) {
-        alert('Adicione pelo menos um valor (Crédito ou Débito) à nota antes de salvar.');
+    if (currentReceivableItems.length === 0) {
+        alert('Adicione pelo menos um item à Nota de Recebíveis antes de salvar.');
         return;
     }
     
-    const { totalCredit, totalDebit, liquidTotal } = updateTotals();
+    saveDebtorDetails(); 
 
-    const form = e.target;
     const documentId = form.dataset.editingId;
+    const grandTotal = calculateGrandTotal();
     
     const newDocument = {
         id: documentId ? documentId : Date.now().toString(),
         tipo: 'NOTA_RECEBIVEIS',
         dataCriacao: new Date().toISOString().split('T')[0],
         
-        noteName: document.getElementById('note-name').value,
-
-        // Itens e Totais
-        items: [...currentItems],
-        totalCredit: totalCredit.toFixed(2),
-        totalDebit: totalDebit.toFixed(2),
-        liquidTotal: liquidTotal.toFixed(2),
+        debtorName: document.getElementById('debtor-name').value,
+        noteNumber: document.getElementById('note-number').value,
+        issueDate: document.getElementById('issue-date').value,
+        dueDate: document.getElementById('due-date').value,
+        issuerName: document.getElementById('issuer-name').value,
+        observations: document.getElementById('observations').value,
+        
+        items: [...currentReceivableItems],
+        totalValue: grandTotal
     };
 
     let documents = getDocuments();
 
     if (documentId) {
         documents = documents.map(doc => doc.id === documentId ? newDocument : doc);
-        alert('Nota atualizada com sucesso!');
+        alert('Nota de Recebíveis atualizada com sucesso!');
         form.removeAttribute('data-editing-id');
         document.getElementById('save-btn').textContent = 'Salvar Nota (C/U)';
     } else {
         documents.push(newDocument);
-        alert('Nota salva com sucesso!');
+        alert('Nota de Recebíveis salva com sucesso!');
     }
     
     saveDocuments(documents);
     renderDocumentList();
     
-    // Limpa o estado da tabela e prepara para nova
     clearForm(form);
-});
-
-// Limpar Formulário
-document.getElementById('clear-form-btn').addEventListener('click', function() {
-    clearForm(document.getElementById('receivable-form'));
-});
+}
 
 function clearForm(form) {
     form.reset();
     form.removeAttribute('data-editing-id');
     document.getElementById('save-btn').textContent = 'Salvar Nota (C/U)';
     
-    // LIMPA O ESTADO GLOBAL de itens
-    currentItems = [];
+    currentReceivableItems = [];
     updateItemsTable();
-    updateTotals(); 
+
+    loadDebtorDetails(); 
 }
 
-
-// UPDATE (Carregar dados para Edição)
+// EXPOSTA GLOBALMENTE: Carrega dados para edição
 function editDocument(id) {
     const documents = getDocuments();
     const doc = documents.find(d => d.id === id);
@@ -202,66 +221,73 @@ function editDocument(id) {
         return;
     }
 
-    // Preenche nome
-    document.getElementById('note-name').value = doc.noteName || '';
+    document.getElementById('debtor-name').value = doc.debtorName || '';
+    document.getElementById('note-number').value = doc.noteNumber || '';
+    document.getElementById('issue-date').value = doc.issueDate || '';
+    document.getElementById('due-date').value = doc.dueDate || '';
+    document.getElementById('issuer-name').value = doc.issuerName || '';
+    document.getElementById('observations').value = doc.observations || '';
     
-    // ITENS
-    currentItems = doc.items || [];
+    saveDebtorDetails(); 
+    loadDebtorDetails(); 
+
+    currentReceivableItems = doc.items || [];
     updateItemsTable(); 
 
-    // Seta estado de edição
     const form = document.getElementById('receivable-form');
     form.setAttribute('data-editing-id', id);
     document.getElementById('save-btn').textContent = 'Atualizar Nota (U)';
     
     window.scrollTo(0, 0); 
 }
+window.editDocument = editDocument;
 
-// READ (Renderizar a Lista de Documentos)
 function renderDocumentList() {
     const list = document.getElementById('document-list');
     list.innerHTML = '';
-    const documents = getDocuments();
+    const documents = getDocuments().filter(doc => doc.tipo === 'NOTA_RECEBIVEIS');
 
     if (documents.length === 0) {
-        list.innerHTML = '<li>Nenhuma nota de recebíveis salva.</li>';
+        list.innerHTML = '<li>Nenhuma Nota de Recebíveis salva.</li>';
         return;
     }
 
     documents.forEach(doc => {
         const li = document.createElement('li');
-        const total = parseFloat(doc.liquidTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         
-        const noteName = doc.noteName || 'Nota Sem Nome';
+        const numeroNota = doc.noteNumber || '[Sem Nº]';
+        const total = formatCurrency(doc.totalValue);
 
         li.innerHTML = `
             <div class="info">
-                <span><strong>NOTA RECEBÍVEIS #${doc.id.substring(8)}</strong> - Ref: ${noteName} | Total Líquido: R$ ${total}</span>
+                <span><strong>NOTA #${doc.id.substring(8)}</strong> - Nº: ${numeroNota} | Cliente: ${doc.debtorName} | Total: ${total}</span>
             </div>
             <div class="actions">
-                <button class="btn btn-action btn-primary" onclick="editDocument('${doc.id}')">Editar</button>
-                <button class="btn btn-action btn-danger" onclick="deleteDocument('${doc.id}')">Remover</button>
-                <button class="btn btn-action btn-primary" style="background: var(--success-color);" onclick="generateAndDownloadPDF('${doc.id}')">Baixar PDF</button>
+                <button class="btn btn-action btn-primary" onclick="window.editDocument('${doc.id}')">Editar</button>
+                <button class="btn btn-action btn-danger" onclick="window.deleteDocument('${doc.id}')">Remover</button>
+                <button class="btn btn-action btn-primary" style="background: var(--success-color);" onclick="window.generateAndDownloadPDF('${doc.id}')">Baixar PDF</button>
             </div>
         `;
         list.appendChild(li);
     });
 }
 
-// DELETE (Excluir Documento)
+// EXPOSTA GLOBALMENTE: Exclui documento
 function deleteDocument(id) {
-    if (!confirm('Tem certeza que deseja excluir esta nota de recebíveis?')) return;
+    if (!confirm('Tem certeza que deseja excluir esta Nota de Recebíveis?')) return;
 
     let documents = getDocuments();
     documents = documents.filter(doc => doc.id !== id);
     saveDocuments(documents);
     renderDocumentList();
-    alert('Nota de recebíveis excluída.');
+    alert('Nota de Recebíveis excluída.');
 }
+window.deleteDocument = deleteDocument;
 
 
 // ==================== FUNÇÃO DE EXPORTAÇÃO PDF ====================
 
+// EXPOSTA GLOBALMENTE: Gera e baixa o PDF
 function generateAndDownloadPDF(id) {
     const documents = getDocuments();
     const doc = documents.find(d => d.id === id);
@@ -275,145 +301,162 @@ function generateAndDownloadPDF(id) {
     const lineHeight = 6;
     let y = 15;
     
-    // Título
+    // 1. Título
     pdf.setFontSize(24);
     pdf.setFont('helvetica', 'bold');
-    pdf.text("NOTA DE RECEBÍVEIS", margin, y); 
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Nº Documento: #${doc.id.substring(8)}`, margin + width, y, { align: 'right' }); 
-    y += lineHeight;
-    pdf.text(`Referência: ${doc.noteName || 'Não Informada'}`, margin, y);
-    pdf.text(`Data: ${formatDate(doc.dataCriacao)}`, margin + width, y, { align: 'right' });
+    pdf.text("NOTA DE RECEBÍVEIS", margin + width / 2, y, { align: 'center' }); 
     y += lineHeight * 2;
     
-    // 1. Tabela de Itens (Unificada)
-    
-    const tableStartY = y;
-    let tableCurrentY = y;
-    const headerHeight = 7;
-    const borderRadius = 2;
-    
-    // Configurações do cabeçalho
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`ID: #${doc.id.substring(8)}`, margin + width, y - lineHeight, { align: 'right' }); 
+    y += lineHeight;
+
+    // 2. Detalhes da Nota
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
-    
-    // Preenche a área do cabeçalho
-    pdf.setFillColor(200, 220, 240); 
-    pdf.rect(margin, tableCurrentY - headerHeight, width, headerHeight, 'F'); 
+    pdf.text("DADOS DA NOTA", margin, y);
+    pdf.line(margin, y + 1, margin + width, y + 1);
+    y += lineHeight;
 
-    // Adiciona texto do cabeçalho
-    pdf.text("Nº", margin + 2, tableCurrentY - 2);
-    pdf.text("TIPO", margin + 15, tableCurrentY - 2);
-    pdf.text("DESCRIÇÃO", margin + 45, tableCurrentY - 2);
-    pdf.text("VALOR (R$)", margin + width - 1, tableCurrentY - 2, { align: 'right' });
-    tableCurrentY += lineHeight;
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Nº da Nota/Fatura: ${doc.noteNumber || 'N/I'}`, margin, y);
+    pdf.text(`Data de Emissão: ${formatDate(doc.issueDate)}`, margin + width / 2, y);
+    y += lineHeight;
+
+    pdf.text(`Data de Vencimento: ${formatDate(doc.dueDate)}`, margin, y);
+    pdf.text(`Empresa Credora (Emitente): ${doc.issuerName || 'N/I'}`, margin + width / 2, y);
+    y += lineHeight;
+    y += lineHeight;
+
+    // 3. Cliente/Devedor
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("DADOS DO DEVEDOR/CLIENTE", margin, y);
+    pdf.line(margin, y + 1, margin + width, y + 1);
+    y += lineHeight;
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Nome do Cliente: ${doc.debtorName || 'N/I'}`, margin, y);
+    y += lineHeight;
+    y += lineHeight;
+
+
+    // 4. Tabela de Itens
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("ITENS RECEBÍVEIS", margin, y);
+    pdf.line(margin, y + 1, margin + width, y + 1);
+    y += lineHeight * 2;
+
+    const tableStartY = y;
+    const headerHeight = 7;
+    const tableHeaderColor = [220, 230, 240]; 
+    const colItem = 10;
+    const colDescricao = 80; 
+    const colValor = 30; 
+    const colQtd = 20; 
+    
+    // Cabeçalho da Tabela
+    pdf.setFillColor(tableHeaderColor[0], tableHeaderColor[1], tableHeaderColor[2]); 
+    pdf.rect(margin, tableStartY - headerHeight, width, headerHeight, 'F'); 
+
+    pdf.text("Nº", margin + 2, tableStartY - 2);
+    pdf.text("DESCRIÇÃO", margin + colItem, tableStartY - 2);
+    pdf.text("VALOR UNIT.", margin + colItem + colDescricao, tableStartY - 2, { align: 'right' });
+    pdf.text("QTD", margin + colItem + colDescricao + colValor + 10, tableStartY - 2, { align: 'right' });
+    pdf.text("TOTAL", margin + width - 1, tableStartY - 2, { align: 'right' });
+    
+    let tableCurrentY = tableStartY + lineHeight * 0.5;
 
     // Linhas de Itens
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'normal');
     
-    if (doc.items && doc.items.length > 0) {
-        // Ordena para exibir Créditos primeiro
-        const sortedItems = [...doc.items].sort((a, b) => {
-            if (a.tipo === 'CREDIT' && b.tipo === 'DEBIT') return -1;
-            if (a.tipo === 'DEBIT' && b.tipo === 'CREDIT') return 1;
-            return 0;
-        });
+    doc.items.forEach((item, index) => {
+        const itemTotal = item.value * item.quantity;
 
-        sortedItems.forEach((item, index) => {
-            if (tableCurrentY > 260) { 
-                pdf.addPage();
-                tableCurrentY = 15 + headerHeight; 
-                tableStartY = 15;
-                // Recria o cabeçalho em nova página
-                pdf.setFontSize(10);
-                pdf.setFont('helvetica', 'bold');
-                pdf.setFillColor(200, 220, 240); 
-                pdf.rect(margin, tableCurrentY - headerHeight, width, headerHeight, 'F'); 
-                pdf.text("Nº", margin + 2, tableCurrentY - 2);
-                pdf.text("TIPO", margin + 15, tableCurrentY - 2);
-                pdf.text("DESCRIÇÃO", margin + 45, tableCurrentY - 2);
-                pdf.text("VALOR (R$)", margin + width - 1, tableCurrentY - 2, { align: 'right' });
-                pdf.setFontSize(9);
-                pdf.setFont('helvetica', 'normal');
-            }
-
-            const valorFormatado = parseFloat(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-            const tipoLabel = item.tipo === 'CREDIT' ? 'Crédito (+)' : 'Débito (-) ';
-            const color = item.tipo === 'CREDIT' ? [0, 150, 0] : [200, 0, 0];
-
-            pdf.text((index + 1).toString(), margin + 2, tableCurrentY);
+        if (tableCurrentY > 270) { 
+            pdf.addPage();
+            tableCurrentY = 15 + headerHeight; 
             
-            pdf.setTextColor(color[0], color[1], color[2]);
-            pdf.text(tipoLabel, margin + 15, tableCurrentY);
+            // Recria cabeçalho
+            pdf.setFontSize(10);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFillColor(tableHeaderColor[0], tableHeaderColor[1], tableHeaderColor[2]); 
+            pdf.rect(margin, tableCurrentY - headerHeight, width, headerHeight, 'F'); 
+            pdf.text("Nº", margin + 2, tableCurrentY - 2);
+            pdf.text("DESCRIÇÃO", margin + colItem, tableCurrentY - 2);
+            pdf.text("VALOR UNIT.", margin + colItem + colDescricao, tableCurrentY - 2, { align: 'right' });
+            pdf.text("QTD", margin + colItem + colDescricao + colValor + 10, tableCurrentY - 2, { align: 'right' });
+            pdf.text("TOTAL", margin + width - 1, tableCurrentY - 2, { align: 'right' });
+            pdf.setFontSize(9);
+            pdf.setFont('helvetica', 'normal');
+        }
 
-            pdf.setTextColor(0, 0, 0); // Volta para preto
-            pdf.text(item.descricao, margin + 45, tableCurrentY);
-            
-            pdf.setTextColor(color[0], color[1], color[2]);
-            pdf.text(valorFormatado, margin + width - 1, tableCurrentY, { align: 'right' });
-            
-            // Linha fina de separação entre itens
-            pdf.setLineWidth(0.1); 
-            pdf.setDrawColor(150, 150, 150); 
-            pdf.line(margin, tableCurrentY + lineHeight * 0.5, margin + width, tableCurrentY + lineHeight * 0.5);
-            
-            tableCurrentY += lineHeight;
-        });
-        pdf.setTextColor(0, 0, 0); // Reset cor
-    } else {
-        pdf.text("Nenhum valor informado.", margin + 1, tableCurrentY);
-        tableCurrentY += lineHeight * 2;
-    }
+        pdf.text((index + 1).toString(), margin + 2, tableCurrentY);
+        pdf.text(item.description, margin + colItem, tableCurrentY);
+        pdf.text(formatCurrency(item.value), margin + colItem + colDescricao + colValor - 1, tableCurrentY, { align: 'right' });
+        pdf.text(item.quantity.toString(), margin + colItem + colDescricao + colValor + colQtd + 1, tableCurrentY, { align: 'right' });
+        pdf.text(formatCurrency(itemTotal), margin + width - 1, tableCurrentY, { align: 'right' });
+        
+        pdf.line(margin, tableCurrentY + lineHeight * 0.3, margin + width, tableCurrentY + lineHeight * 0.3);
+        
+        tableCurrentY += lineHeight;
+    });
 
-    // Desenha o Contorno da Tabela
+    // Desenha o Contorno e Total
     const tableTotalHeight = tableCurrentY - (tableStartY - headerHeight); 
-
     pdf.setDrawColor(0, 0, 0); 
     pdf.setLineWidth(0.2); 
-    
-    pdf.rect(margin, tableStartY - headerHeight, width, tableTotalHeight, 'S', borderRadius); 
+    pdf.rect(margin, tableStartY - headerHeight, width, tableTotalHeight + 6, 'S'); 
 
-    // Desenha linha mais grossa separando o cabeçalho dos itens
-    pdf.setLineWidth(0.4); 
-    pdf.line(margin, tableStartY - headerHeight + headerHeight, margin + width, tableStartY - headerHeight + headerHeight); 
-    
-    y = tableCurrentY + lineHeight;
-    
-    // 2. Resumo dos Totais
-    
-    const totalCreditFormatado = parseFloat(doc.totalCredit).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    const totalDebitFormatado = parseFloat(doc.totalDebit).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    const liquidTotalFormatado = parseFloat(doc.liquidTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    
+    // Total Geral
     pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'normal');
-
-    pdf.text("TOTAL DE CRÉDITOS:", margin + 100, y, { align: 'right' });
-    pdf.setTextColor(0, 150, 0);
-    pdf.text(`R$ ${totalCreditFormatado}`, margin + width, y, { align: 'right' });
-    y += lineHeight;
-
-    pdf.setTextColor(0, 0, 0);
-    pdf.text("TOTAL DE DÉBITOS:", margin + 100, y, { align: 'right' });
-    pdf.setTextColor(200, 0, 0);
-    pdf.text(`R$ ${totalDebitFormatado}`, margin + width, y, { align: 'right' });
-    y += lineHeight + 3; 
-
-    // Linha de separação do total líquido
-    pdf.setLineWidth(0.5);
-    pdf.setDrawColor(0, 0, 0);
-    pdf.line(margin + 100, y - 1, margin + width, y - 1);
-    
-    // Total Líquido
-    pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(0, 0, 150);
-    pdf.text("TOTAL LÍQUIDO A RECEBER:", margin + 100, y + 2, { align: 'right' });
-    pdf.text(`R$ ${liquidTotalFormatado}`, margin + width, y + 2, { align: 'right' });
-    y += lineHeight * 2;
+    pdf.setFillColor(255, 255, 200); 
+    pdf.rect(margin + width - 50, tableCurrentY + 1, 50, 5, 'F'); 
+    pdf.text("TOTAL GERAL:", margin + width - 55, tableCurrentY + 4, { align: 'right' });
+    pdf.text(formatCurrency(doc.totalValue), margin + width - 1, tableCurrentY + 4, { align: 'right' });
+    
+    y = tableCurrentY + lineHeight * 2; 
+
+    // 5. Observações
+    if (doc.observations) {
+        if (y + 30 > 280) {
+            pdf.addPage();
+            y = 15; 
+        }
+
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text("OBSERVAÇÕES:", margin, y);
+        pdf.line(margin, y + 1, margin + width, y + 1);
+        y += lineHeight;
+
+        pdf.setFont('helvetica', 'normal');
+        const splitText = pdf.splitTextToSize(doc.observations, width);
+        pdf.text(splitText, margin, y);
+        y += splitText.length * 5 + 5; 
+    }
+    
+    // 6. Campo para Assinatura (A ser paga por...)
+    if (y + 30 > 280) {
+        pdf.addPage();
+        y = 15; 
+    }
+    
+    const signatureY = Math.max(y + 10, 250); 
+
+    // Linha de assinatura
+    pdf.setDrawColor(0, 0, 0);
+    pdf.setLineWidth(0.5);
+    pdf.line(margin + 50, signatureY, margin + width - 50, signatureY);
+    
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`Assinatura do Devedor/Cliente`, margin + width / 2, signatureY + 4, { align: 'center' });
 
 
     pdf.save(`NOTA_RECEBIVEIS_${doc.id.substring(8)}.pdf`);
 }
+window.generateAndDownloadPDF = generateAndDownloadPDF;
