@@ -5,7 +5,7 @@ const CLIENT_DETAILS_KEY = 'delivery_client_details';
 
 // VARIÁVEIS GLOBAIS
 let currentItems = []; 
-let currentEmitterDetails = {};
+let currentEmitterDetails = { logoBase64: '' }; // Adicionado logoBase64
 let currentClientDetails = {};
 
 // Função auxiliar para obter documentos salvos
@@ -34,12 +34,42 @@ function formatDate(date) {
 
 // ==================== LÓGICA DE PERSISTÊNCIA ====================
 
-function saveEmitterDetails() {
+// Funções para lidar com a persistência da Logomarca
+function handleLogoUpload(file) {
+    return new Promise((resolve) => {
+        if (!file) {
+            resolve(null);
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // Salva o Base64 com o prefixo do tipo MIME
+            resolve(e.target.result); 
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+async function saveEmitterDetails() {
     currentEmitterDetails.company = document.getElementById('emitter-company').value;
     currentEmitterDetails.contact = document.getElementById('emitter-contact').value;
     currentEmitterDetails.address = document.getElementById('emitter-address').value;
 
+    // Se houver um novo arquivo, processa e substitui o logoBase64
+    const logoFile = document.getElementById('emitter-logo').files[0];
+    if (logoFile) {
+        currentEmitterDetails.logoBase64 = await handleLogoUpload(logoFile);
+    } 
+    // Se não houver novo arquivo, o logoBase64 existente é mantido.
+    // Se o usuário salvar sem mexer no logo, o campo file fica vazio. 
+    // Se ele quiser remover, teria que limpar o campo file explicitamente. (Não implementado, mas o padrão é manter)
+
     localStorage.setItem(EMITTER_DETAILS_KEY, JSON.stringify(currentEmitterDetails));
+    
+    // Limpa o campo de arquivo para que ele não seja carregado novamente na próxima submissão
+    if (logoFile) {
+        document.getElementById('emitter-logo').value = '';
+    }
 }
 
 function loadEmitterDetails() {
@@ -51,6 +81,16 @@ function loadEmitterDetails() {
     if (data.company) document.getElementById('emitter-company').value = data.company;
     if (data.contact) document.getElementById('emitter-contact').value = data.contact;
     if (data.address) document.getElementById('emitter-address').value = data.address;
+
+    // Pré-visualização da logo salva
+    const preview = document.getElementById('logo-preview');
+    if (data.logoBase64) {
+        preview.src = data.logoBase64;
+        preview.style.display = 'block';
+    } else {
+        preview.src = '#';
+        preview.style.display = 'none';
+    }
 }
 
 function saveClientDetails() {
@@ -74,7 +114,7 @@ function loadClientDetails() {
 
 // ==================== INICIALIZAÇÃO E EVENTOS DE DATA/TOTAIS ====================
 document.addEventListener('DOMContentLoaded', () => {
-    // Carrega os detalhes
+    // Carrega os detalhes (incluindo logo)
     loadEmitterDetails(); 
     loadClientDetails();
     
@@ -82,6 +122,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('emitter-company').addEventListener('blur', saveEmitterDetails);
     document.getElementById('emitter-contact').addEventListener('blur', saveEmitterDetails);
     document.getElementById('emitter-address').addEventListener('blur', saveEmitterDetails);
+    
+    // Listener especial para salvar a logo assim que o arquivo for selecionado/processado
+    document.getElementById('emitter-logo').addEventListener('change', async function() {
+        await saveEmitterDetails();
+        loadEmitterDetails(); // Recarrega para atualizar a preview com o Base64 persistido
+    });
+
 
     document.getElementById('client-company').addEventListener('blur', saveClientDetails);
     document.getElementById('client-contact').addEventListener('blur', saveClientDetails);
@@ -175,38 +222,42 @@ function updateItemsTable() {
 
 // ==================== FUNÇÕES CRUD (CREATE, READ, UPDATE) ====================
 
-document.getElementById('delivery-form').addEventListener('submit', function(e) {
+document.getElementById('delivery-form').addEventListener('submit', async function(e) {
     e.preventDefault();
 
     if (!e.target.checkValidity()) {
         alert('Por favor, preencha os campos obrigatórios (Empresa Emissora, Empresa Cliente e Endereço de Entrega).');
         return;
     }
+    
+    // Salva detalhes, incluindo a LOGO. PRECISA SER ASYNC AQUI!
+    await saveEmitterDetails(); 
+    saveClientDetails(); 
 
     if (currentItems.length === 0) {
         alert('Adicione pelo menos um item à nota de entrega antes de salvar.');
         return;
     }
-    
-    // Salva detalhes
-    saveEmitterDetails(); 
-    saveClientDetails();
 
     const form = e.target;
     const documentId = form.dataset.editingId;
     
     const totalGeral = currentItems.reduce((sum, item) => sum + parseFloat(item.subtotal), 0).toFixed(2);
     
+    // Recarrega os dados do emissor para garantir que a logo base64 esteja no objeto global
+    loadEmitterDetails(); 
+
     const newDocument = {
         id: documentId ? documentId : Date.now().toString(),
         tipo: 'RECIBO_ENTREGA',
         dataCriacao: new Date().toISOString().split('T')[0],
         
-        // Emissor
+        // Emissor (Incluindo a Logomarca em Base64)
         emitter: {
-            company: document.getElementById('emitter-company').value,
-            contact: document.getElementById('emitter-contact').value,
-            address: document.getElementById('emitter-address').value,
+            company: currentEmitterDetails.company, // Usa o valor do objeto global atualizado
+            contact: currentEmitterDetails.contact,
+            address: currentEmitterDetails.address,
+            logoBase64: currentEmitterDetails.logoBase64, // Inclui a logo
         },
         
         // Cliente
@@ -276,13 +327,19 @@ function editDocument(id) {
     document.getElementById('emitter-contact').value = doc.emitter.contact || '';
     document.getElementById('emitter-address').value = doc.emitter.address || '';
     
+    // Atualiza o objeto global de detalhes do emissor com a logo
+    currentEmitterDetails.logoBase64 = doc.emitter.logoBase64 || '';
+    
+    // Salva os detalhes da lista atual para persistência (se o usuário sair da página)
+    saveEmitterDetails(); // Salva os dados de texto E a logo Base64
+    loadEmitterDetails(); // Atualiza a preview da logo
+
+
     // Preenche detalhes do Cliente
     document.getElementById('client-company').value = doc.client.company || '';
     document.getElementById('client-contact').value = doc.client.contact || '';
     document.getElementById('client-address').value = doc.client.address || '';
     
-    // Salva os detalhes da lista atual para persistência (se o usuário sair da página)
-    saveEmitterDetails();
     saveClientDetails(); 
 
     // ITENS
@@ -356,16 +413,43 @@ function generateAndDownloadPDF(id) {
     const lineHeight = 6;
     let y = 15;
     
+    // 1. Logomarca e Título
+    
+    const LOGO_HEIGHT = 20; // Altura máxima para a logo
+    const LOGO_WIDTH = 50;  // Largura máxima para a logo
+
+    if (doc.emitter.logoBase64) {
+        try {
+            const imgData = doc.emitter.logoBase64;
+            const imgType = imgData.split(':')[1].split(';')[0].split('/')[1].toUpperCase(); // Ex: JPEG, PNG
+
+            // Posiciona a logo à esquerda, no topo
+            pdf.addImage(imgData, imgType, margin, y, LOGO_WIDTH, LOGO_HEIGHT);
+            
+            // Ajusta o 'y' para começar o título após o espaço da logo
+            y = margin + LOGO_HEIGHT + 5; 
+
+        } catch (error) {
+            console.error("Erro ao adicionar logomarca ao PDF:", error);
+            // Se falhar, usa o layout padrão
+            y = 15; 
+        }
+    } else {
+        // Se não houver logo, começa no topo
+        y = 15; 
+    }
+
     // Título
     pdf.setFontSize(24);
     pdf.setFont('helvetica', 'bold');
     pdf.text("RECIBO / NOTA DE ENTREGA", margin, y); 
+    
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
     pdf.text(`Nº Documento: #${doc.id.substring(8)}`, margin + width, y, { align: 'right' }); 
     y += lineHeight * 2;
     
-    // 1. DADOS DO EMISSOR E CLIENTE (Caixas)
+    // 2. DADOS DO EMISSOR E CLIENTE (Caixas)
     
     const boxWidth = (width / 2) - 3;
     const boxHeight = lineHeight * 5;
@@ -400,7 +484,7 @@ function generateAndDownloadPDF(id) {
     
     y += boxHeight + 10;
     
-    // 2. Tabela de Itens 
+    // 3. Tabela de Itens 
     
     const tableStartY = y;
     let tableCurrentY = y;
@@ -488,7 +572,7 @@ function generateAndDownloadPDF(id) {
     
     y = tableCurrentY;
     
-    // 3. Rodapé e Total Geral
+    // 4. Rodapé e Total Geral
     y += lineHeight * 0.5;
     pdf.line(margin, y, margin + width, y); 
     y += lineHeight;
@@ -499,7 +583,7 @@ function generateAndDownloadPDF(id) {
     pdf.text(`R$ ${parseFloat(doc.totalGeral).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 175, y, { align: 'right' });
     y += lineHeight;
 
-    // 4. CANHOTO DE RECEBIMENTO
+    // 5. CANHOTO DE RECEBIMENTO
     
     // Posição para o canhoto (cerca de 3cm do final da página)
     const canhotoY = 260;

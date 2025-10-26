@@ -23,6 +23,18 @@
         .text-right {
             text-align: right;
         }
+        /* Estilo para pré-visualização da logo */
+        #logo-preview-container {
+            margin-top: 10px;
+            text-align: center;
+        }
+        #logo-preview {
+            max-width: 100px;
+            max-height: 50px;
+            border: 1px solid #ccc;
+            padding: 2px;
+            display: none; /* Escondida por padrão */
+        }
     </style>
 </head>
 <body>
@@ -36,9 +48,9 @@
                     <li><a href="orcamento.html">Orçamento</a></li>
                     <li><a href="lista-compras.html">Lista de Compras</a></li>
                     <li><a href="requisicao-compra.html">Requisição de Compra</a></li>
-                    <li><a href="nota-recebiveis.html">Nota de Recebíveis</a></li>
+                    <li><a href="ordem-servico.html">Ordem de Serviço</a></li>
                     <li><a href="recibo-entrega.html">Recibo de Entrega</a></li>
-                    
+                    <li><a href="nota-recebiveis.html">Nota de Recebíveis</a></li>
                 </ul>
             </nav>
             <div class="hamburger" id="hamburger">&#9776;</div>
@@ -55,6 +67,14 @@
                     <div class="field-group">
                         <label for="emitter-company">Empresa Emissora:</label>
                         <input type="text" id="emitter-company" required placeholder="Ex: Logística Rápida LTDA">
+                    </div>
+                    
+                    <div class="field-group">
+                        <label for="emitter-logo">Logomarca (para o PDF):</label>
+                        <input type="file" id="emitter-logo" accept="image/*">
+                        <div id="logo-preview-container">
+                            <img id="logo-preview" src="#" alt="Pré-visualização da Logo">
+                        </div>
                     </div>
                     <div class="field-group">
                         <label for="emitter-contact">Contato (Tel/Email):</label>
@@ -146,6 +166,24 @@
         document.getElementById('hamburger').addEventListener('click', function() {
             const navLinks = document.getElementById('nav-links');
             navLinks.classList.toggle('active');
+        });
+
+        // Lógica de pré-visualização da Logomarca
+        document.getElementById('emitter-logo').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('logo-preview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.src = '#';
+                preview.style.display = 'none';
+            }
         });
     </script>
 </body>
