@@ -4,7 +4,8 @@ const DEBTOR_DETAILS_KEY = 'receivables_debtor_details';
 
 // VARIÁVEIS GLOBAIS
 let currentReceivableItems = []; 
-let currentDebtorDetails = {}; // Não precisamos da logo aqui, mas manteremos o padrão de persistência
+let currentDiscountItems = []; 
+let currentDebtorDetails = {}; 
 
 // Funções Auxiliares
 function getDocuments() {
@@ -29,6 +30,7 @@ function formatDate(date) {
 }
 
 function formatCurrency(value) {
+    // Garante que o valor é um número de ponto flutuante, fixado em 2 casas, e formatado para BRL.
     return `R$ ${parseFloat(value).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
@@ -36,9 +38,6 @@ function formatCurrency(value) {
 
 function saveDebtorDetails() {
     currentDebtorDetails.debtorName = document.getElementById('debtor-name').value;
-    currentDebtorDetails.noteNumber = document.getElementById('note-number').value;
-    currentDebtorDetails.issuerName = document.getElementById('issuer-name').value;
-
     localStorage.setItem(DEBTOR_DETAILS_KEY, JSON.stringify(currentDebtorDetails));
 }
 window.saveDebtorDetails = saveDebtorDetails; 
@@ -51,8 +50,6 @@ function loadDebtorDetails() {
     currentDebtorDetails = data;
     
     if (data.debtorName) document.getElementById('debtor-name').value = data.debtorName;
-    if (data.noteNumber) document.getElementById('note-number').value = data.noteNumber;
-    if (data.issuerName) document.getElementById('issuer-name').value = data.issuerName;
 }
 
 // ==================== INICIALIZAÇÃO E EVENTOS ====================
@@ -61,87 +58,130 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Listeners para salvar detalhes de texto (ex: ao sair do campo)
     document.getElementById('debtor-name').addEventListener('blur', saveDebtorDetails);
-    document.getElementById('note-number').addEventListener('blur', saveDebtorDetails);
-    document.getElementById('issuer-name').addEventListener('blur', saveDebtorDetails);
 
     renderDocumentList();
-    updateItemsTable();
+    updateItemsTables(); // Inicializa ambas as tabelas
     
     // Configuração dos Eventos de Formulário e Ações
-    document.getElementById('add-item-btn').addEventListener('click', addItem);
+    document.getElementById('add-receivable-btn').addEventListener('click', addReceivableItem);
+    document.getElementById('add-discount-btn').addEventListener('click', addDiscountItem);
     document.getElementById('receivable-form').addEventListener('submit', handleSubmit);
     document.getElementById('clear-form-btn').addEventListener('click', () => clearForm(document.getElementById('receivable-form')));
 });
 
-// ==================== FUNÇÕES DE GERENCIAMENTO DE ITENS (TABELA DINÂMICA) ====================
+// ==================== FUNÇÕES DE GERENCIAMENTO DE ITENS (TABELAS DINÂMICAS) ====================
 
-function calculateGrandTotal() {
-    const total = currentReceivableItems.reduce((sum, item) => sum + (item.value * item.quantity), 0);
-    document.getElementById('grand-total-display').textContent = formatCurrency(total);
-    return total;
+function calculateTotals() {
+    const receivablesTotal = currentReceivableItems.reduce((sum, item) => sum + item.value, 0);
+    const discountsTotal = currentDiscountItems.reduce((sum, item) => sum + item.value, 0);
+    const grandTotal = receivablesTotal - discountsTotal;
+
+    document.getElementById('receivable-total-display').textContent = formatCurrency(receivablesTotal);
+    document.getElementById('discount-total-display').textContent = formatCurrency(discountsTotal);
+    document.getElementById('grand-total-display').textContent = formatCurrency(grandTotal);
+    
+    return { receivablesTotal, discountsTotal, grandTotal };
 }
 
-function addItem() {
-    const descriptionInput = document.getElementById('item-description');
-    const valueInput = document.getElementById('item-value');
-    const quantityInput = document.getElementById('item-quantity'); 
+// Adiciona item de Recebível
+function addReceivableItem() {
+    const descriptionInput = document.getElementById('receivable-description');
+    const valueInput = document.getElementById('receivable-value');
 
     const description = descriptionInput.value.trim();
     const value = parseFloat(valueInput.value);
-    const quantity = parseInt(quantityInput.value);
 
-    // VALIDAÇÃO JS: ESSENCIAL APÓS REMOVER 'REQUIRED' DO HTML
-    if (!description || isNaN(value) || value < 0 || isNaN(quantity) || quantity <= 0) {
-        alert("Por favor, preencha a Descrição, o Valor (não-negativo) e a Quantidade (maior que zero) antes de adicionar.");
+    // VALIDAÇÃO JS
+    if (!description || isNaN(value) || value <= 0) {
+        alert("Por favor, preencha a Descrição e o Valor (positivo) do recebível.");
         return;
     }
 
-    const newItem = { description, value, quantity };
-
+    const newItem = { description, value };
     currentReceivableItems.push(newItem);
-    updateItemsTable();
+    updateItemsTables();
 
     descriptionInput.value = '';
     valueInput.value = '0.00';
-    quantityInput.value = '1';
-    
-    // Atualiza o campo total calculado
-    document.getElementById('item-total').value = '0.00';
-    
     descriptionInput.focus();
 }
 
-// EXPOSTA GLOBALMENTE: Remove item da lista
-function removeItem(index) {
-    if (!confirm('Tem certeza que deseja remover este item?')) return;
-    currentReceivableItems.splice(index, 1);
-    updateItemsTable();
+// Adiciona item de Desconto
+function addDiscountItem() {
+    const descriptionInput = document.getElementById('discount-description');
+    const valueInput = document.getElementById('discount-value');
+
+    const description = descriptionInput.value.trim();
+    const value = parseFloat(valueInput.value);
+
+    // VALIDAÇÃO JS
+    if (!description || isNaN(value) || value <= 0) {
+        alert("Por favor, preencha a Descrição e o Valor (positivo) do desconto.");
+        return;
+    }
+
+    const newItem = { description, value };
+    currentDiscountItems.push(newItem);
+    updateItemsTables();
+
+    descriptionInput.value = '';
+    valueInput.value = '0.00';
+    descriptionInput.focus();
+}
+
+// EXPOSTA GLOBALMENTE: Remove item
+function removeItem(type, index) {
+    if (!confirm(`Tem certeza que deseja remover ${type === 'receivable' ? 'este recebível' : 'este desconto'}?`)) return;
+    
+    if (type === 'receivable') {
+        currentReceivableItems.splice(index, 1);
+    } else if (type === 'discount') {
+        currentDiscountItems.splice(index, 1);
+    }
+    
+    updateItemsTables();
 }
 window.removeItem = removeItem; 
 
-function updateItemsTable() {
-    const tableBody = document.querySelector('#items-table tbody');
-    tableBody.innerHTML = '';
+// Atualiza ambas as tabelas
+function updateItemsTables() {
+    const receivablesBody = document.querySelector('#receivables-table tbody');
+    const discountsBody = document.querySelector('#discounts-table tbody');
+    
+    receivablesBody.innerHTML = '';
+    discountsBody.innerHTML = '';
 
+    // Tabela de Recebíveis
     if (currentReceivableItems.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="6" class="text-center" style="color: var(--secondary-color);">Nenhum item adicionado à nota.</td></tr>';
+        receivablesBody.innerHTML = '<tr><td colspan="4" class="text-center" style="color: var(--secondary-color);">Nenhum recebível adicionado.</td></tr>';
+    } else {
+        currentReceivableItems.forEach((item, index) => {
+            const row = receivablesBody.insertRow();
+            row.innerHTML = `
+                <td class="text-center">${index + 1}</td>
+                <td>${item.description}</td>
+                <td class="text-right">${formatCurrency(item.value)}</td>
+                <td class="text-center"><button type="button" class="btn btn-action btn-danger" onclick="window.removeItem('receivable', ${index})">Remover</button></td>
+            `;
+        });
     }
 
-    currentReceivableItems.forEach((item, index) => {
-        const itemTotal = item.value * item.quantity;
-        const row = tableBody.insertRow();
-        
-        row.innerHTML = `
-            <td class="text-center">${index + 1}</td>
-            <td>${item.description}</td>
-            <td class="text-right">${formatCurrency(item.value)}</td>
-            <td class="text-right">${item.quantity}</td>
-            <td class="text-right">${formatCurrency(itemTotal)}</td>
-            <td class="text-center"><button type="button" class="btn btn-action btn-danger" onclick="window.removeItem(${index})">Remover</button></td>
-        `;
-    });
+    // Tabela de Descontos
+    if (currentDiscountItems.length === 0) {
+        discountsBody.innerHTML = '<tr><td colspan="4" class="text-center" style="color: var(--secondary-color);">Nenhum desconto adicionado.</td></tr>';
+    } else {
+        currentDiscountItems.forEach((item, index) => {
+            const row = discountsBody.insertRow();
+            row.innerHTML = `
+                <td class="text-center">${index + 1}</td>
+                <td>${item.description}</td>
+                <td class="text-right">${formatCurrency(item.value)}</td>
+                <td class="text-center"><button type="button" class="btn btn-action btn-danger" onclick="window.removeItem('discount', ${index})">Remover</button></td>
+            `;
+        });
+    }
     
-    calculateGrandTotal();
+    calculateTotals();
 }
 
 // ==================== FUNÇÕES CRUD (CREATE, READ, UPDATE) ====================
@@ -149,37 +189,36 @@ function updateItemsTable() {
 async function handleSubmit(e) { 
     e.preventDefault();
     
-    // Validação do formulário principal (campos obrigatórios no HTML)
     const form = e.target;
     if (!form.checkValidity()) {
-        form.reportValidity(); // Permite que o navegador mostre o erro nos campos obrigatórios
+        form.reportValidity(); 
         return;
     }
 
+    // VALIDAÇÃO ESSENCIAL: Garante que a nota tenha pelo menos um recebível
     if (currentReceivableItems.length === 0) {
-        alert('Adicione pelo menos um item à Nota de Recebíveis antes de salvar.');
+        alert('Adicione pelo menos um item Recebível à Nota antes de salvar.');
         return;
     }
     
     saveDebtorDetails(); 
 
     const documentId = form.dataset.editingId;
-    const grandTotal = calculateGrandTotal();
+    const totals = calculateTotals();
     
     const newDocument = {
         id: documentId ? documentId : Date.now().toString(),
-        tipo: 'NOTA_RECEBIVEIS',
+        tipo: 'NOTA_RECEBIVEIS_SIMPLES',
         dataCriacao: new Date().toISOString().split('T')[0],
         
         debtorName: document.getElementById('debtor-name').value,
-        noteNumber: document.getElementById('note-number').value,
-        issueDate: document.getElementById('issue-date').value,
-        dueDate: document.getElementById('due-date').value,
-        issuerName: document.getElementById('issuer-name').value,
-        observations: document.getElementById('observations').value,
         
-        items: [...currentReceivableItems],
-        totalValue: grandTotal
+        receivables: [...currentReceivableItems],
+        discounts: [...currentDiscountItems],
+        
+        receivablesTotal: totals.receivablesTotal,
+        discountsTotal: totals.discountsTotal,
+        grandTotal: totals.grandTotal
     };
 
     let documents = getDocuments();
@@ -206,7 +245,8 @@ function clearForm(form) {
     document.getElementById('save-btn').textContent = 'Salvar Nota (C/U)';
     
     currentReceivableItems = [];
-    updateItemsTable();
+    currentDiscountItems = [];
+    updateItemsTables();
 
     loadDebtorDetails(); 
 }
@@ -222,17 +262,13 @@ function editDocument(id) {
     }
 
     document.getElementById('debtor-name').value = doc.debtorName || '';
-    document.getElementById('note-number').value = doc.noteNumber || '';
-    document.getElementById('issue-date').value = doc.issueDate || '';
-    document.getElementById('due-date').value = doc.dueDate || '';
-    document.getElementById('issuer-name').value = doc.issuerName || '';
-    document.getElementById('observations').value = doc.observations || '';
     
     saveDebtorDetails(); 
     loadDebtorDetails(); 
 
-    currentReceivableItems = doc.items || [];
-    updateItemsTable(); 
+    currentReceivableItems = doc.receivables || [];
+    currentDiscountItems = doc.discounts || [];
+    updateItemsTables(); 
 
     const form = document.getElementById('receivable-form');
     form.setAttribute('data-editing-id', id);
@@ -245,7 +281,8 @@ window.editDocument = editDocument;
 function renderDocumentList() {
     const list = document.getElementById('document-list');
     list.innerHTML = '';
-    const documents = getDocuments().filter(doc => doc.tipo === 'NOTA_RECEBIVEIS');
+    // Filtra documentos criados por esta versão simplificada
+    const documents = getDocuments().filter(doc => doc.tipo === 'NOTA_RECEBIVEIS_SIMPLES');
 
     if (documents.length === 0) {
         list.innerHTML = '<li>Nenhuma Nota de Recebíveis salva.</li>';
@@ -255,12 +292,11 @@ function renderDocumentList() {
     documents.forEach(doc => {
         const li = document.createElement('li');
         
-        const numeroNota = doc.noteNumber || '[Sem Nº]';
-        const total = formatCurrency(doc.totalValue);
+        const total = formatCurrency(doc.grandTotal);
 
         li.innerHTML = `
             <div class="info">
-                <span><strong>NOTA #${doc.id.substring(8)}</strong> - Nº: ${numeroNota} | Cliente: ${doc.debtorName} | Total: ${total}</span>
+                <span><strong>NOTA #${doc.id.substring(8)}</strong> - Cliente: ${doc.debtorName} | Total Geral: ${total}</span>
             </div>
             <div class="actions">
                 <button class="btn btn-action btn-primary" onclick="window.editDocument('${doc.id}')">Editar</button>
@@ -310,26 +346,11 @@ function generateAndDownloadPDF(id) {
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
     pdf.text(`ID: #${doc.id.substring(8)}`, margin + width, y - lineHeight, { align: 'right' }); 
+    pdf.text(`Data: ${formatDate(doc.dataCriacao)}`, margin + width, y, { align: 'right' });
     y += lineHeight;
 
-    // 2. Detalhes da Nota
+    // 2. Cliente/Devedor
     pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text("DADOS DA NOTA", margin, y);
-    pdf.line(margin, y + 1, margin + width, y + 1);
-    y += lineHeight;
-
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Nº da Nota/Fatura: ${doc.noteNumber || 'N/I'}`, margin, y);
-    pdf.text(`Data de Emissão: ${formatDate(doc.issueDate)}`, margin + width / 2, y);
-    y += lineHeight;
-
-    pdf.text(`Data de Vencimento: ${formatDate(doc.dueDate)}`, margin, y);
-    pdf.text(`Empresa Credora (Emitente): ${doc.issuerName || 'N/I'}`, margin + width / 2, y);
-    y += lineHeight;
-    y += lineHeight;
-
-    // 3. Cliente/Devedor
     pdf.setFont('helvetica', 'bold');
     pdf.text("DADOS DO DEVEDOR/CLIENTE", margin, y);
     pdf.line(margin, y + 1, margin + width, y + 1);
@@ -337,114 +358,129 @@ function generateAndDownloadPDF(id) {
 
     pdf.setFont('helvetica', 'normal');
     pdf.text(`Nome do Cliente: ${doc.debtorName || 'N/I'}`, margin, y);
-    y += lineHeight;
-    y += lineHeight;
-
-
-    // 4. Tabela de Itens
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text("ITENS RECEBÍVEIS", margin, y);
-    pdf.line(margin, y + 1, margin + width, y + 1);
     y += lineHeight * 2;
 
-    const tableStartY = y;
-    const headerHeight = 7;
-    const tableHeaderColor = [220, 230, 240]; 
-    const colItem = 10;
-    const colDescricao = 80; 
-    const colValor = 30; 
-    const colQtd = 20; 
-    
-    // Cabeçalho da Tabela
-    pdf.setFillColor(tableHeaderColor[0], tableHeaderColor[1], tableHeaderColor[2]); 
-    pdf.rect(margin, tableStartY - headerHeight, width, headerHeight, 'F'); 
 
-    pdf.text("Nº", margin + 2, tableStartY - 2);
-    pdf.text("DESCRIÇÃO", margin + colItem, tableStartY - 2);
-    pdf.text("VALOR UNIT.", margin + colItem + colDescricao, tableStartY - 2, { align: 'right' });
-    pdf.text("QTD", margin + colItem + colDescricao + colValor + 10, tableStartY - 2, { align: 'right' });
-    pdf.text("TOTAL", margin + width - 1, tableStartY - 2, { align: 'right' });
-    
-    let tableCurrentY = tableStartY + lineHeight * 0.5;
-
-    // Linhas de Itens
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'normal');
-    
-    doc.items.forEach((item, index) => {
-        const itemTotal = item.value * item.quantity;
-
-        if (tableCurrentY > 270) { 
-            pdf.addPage();
-            tableCurrentY = 15 + headerHeight; 
-            
-            // Recria cabeçalho
+    // 3. Função para desenhar a Tabela de Itens (Recebíveis ou Descontos)
+    const drawItemTable = (title, items, isDiscount, startY) => {
+        let currentY = startY;
+        
+        if (items.length === 0) {
             pdf.setFontSize(10);
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFillColor(tableHeaderColor[0], tableHeaderColor[1], tableHeaderColor[2]); 
-            pdf.rect(margin, tableCurrentY - headerHeight, width, headerHeight, 'F'); 
-            pdf.text("Nº", margin + 2, tableCurrentY - 2);
-            pdf.text("DESCRIÇÃO", margin + colItem, tableCurrentY - 2);
-            pdf.text("VALOR UNIT.", margin + colItem + colDescricao, tableCurrentY - 2, { align: 'right' });
-            pdf.text("QTD", margin + colItem + colDescricao + colValor + 10, tableCurrentY - 2, { align: 'right' });
-            pdf.text("TOTAL", margin + width - 1, tableCurrentY - 2, { align: 'right' });
-            pdf.setFontSize(9);
             pdf.setFont('helvetica', 'normal');
+            pdf.text(`Nenhum(a) ${title.toLowerCase()} listado(a).`, margin, currentY + lineHeight);
+            return currentY + lineHeight * 2;
         }
 
-        pdf.text((index + 1).toString(), margin + 2, tableCurrentY);
-        pdf.text(item.description, margin + colItem, tableCurrentY);
-        pdf.text(formatCurrency(item.value), margin + colItem + colDescricao + colValor - 1, tableCurrentY, { align: 'right' });
-        pdf.text(item.quantity.toString(), margin + colItem + colDescricao + colValor + colQtd + 1, tableCurrentY, { align: 'right' });
-        pdf.text(formatCurrency(itemTotal), margin + width - 1, tableCurrentY, { align: 'right' });
+        const tableHeaderColor = isDiscount ? [255, 200, 200] : [220, 230, 240];
+        const headerHeight = 7;
+        const colItem = 10;
+        const colDescricao = 115; 
         
-        pdf.line(margin, tableCurrentY + lineHeight * 0.3, margin + width, tableCurrentY + lineHeight * 0.3);
-        
-        tableCurrentY += lineHeight;
-    });
+        // Título da Seção
+        pdf.setFontSize(11); 
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(title.toUpperCase(), margin, currentY);
+        currentY += lineHeight * 1.5;
 
-    // Desenha o Contorno e Total
-    const tableTotalHeight = tableCurrentY - (tableStartY - headerHeight); 
-    pdf.setDrawColor(0, 0, 0); 
-    pdf.setLineWidth(0.2); 
-    pdf.rect(margin, tableStartY - headerHeight, width, tableTotalHeight + 6, 'S'); 
+        const tableStartY = currentY;
 
-    // Total Geral
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFillColor(255, 255, 200); 
-    pdf.rect(margin + width - 50, tableCurrentY + 1, 50, 5, 'F'); 
-    pdf.text("TOTAL GERAL:", margin + width - 55, tableCurrentY + 4, { align: 'right' });
-    pdf.text(formatCurrency(doc.totalValue), margin + width - 1, tableCurrentY + 4, { align: 'right' });
-    
-    y = tableCurrentY + lineHeight * 2; 
-
-    // 5. Observações
-    if (doc.observations) {
-        if (y + 30 > 280) {
-            pdf.addPage();
-            y = 15; 
-        }
-
+        // Cabeçalho da Tabela
         pdf.setFontSize(10);
         pdf.setFont('helvetica', 'bold');
-        pdf.text("OBSERVAÇÕES:", margin, y);
-        pdf.line(margin, y + 1, margin + width, y + 1);
-        y += lineHeight;
+        pdf.setFillColor(tableHeaderColor[0], tableHeaderColor[1], tableHeaderColor[2]); 
+        pdf.rect(margin, tableStartY - headerHeight, width, headerHeight, 'F'); 
 
+        pdf.text("Nº", margin + 2, tableStartY - 2);
+        pdf.text("DESCRIÇÃO", margin + colItem, tableStartY - 2);
+        pdf.text("VALOR (R$)", margin + width - 1, tableStartY - 2, { align: 'right' });
+        
+        currentY += lineHeight * 0.5;
+
+        // Linhas de Itens
+        pdf.setFontSize(9);
         pdf.setFont('helvetica', 'normal');
-        const splitText = pdf.splitTextToSize(doc.observations, width);
-        pdf.text(splitText, margin, y);
-        y += splitText.length * 5 + 5; 
-    }
+        
+        items.forEach((item, index) => {
+            if (currentY > 270) { 
+                pdf.addPage();
+                currentY = 15 + headerHeight * 2; 
+                
+                // Recria Título e Cabeçalho
+                pdf.setFontSize(11); pdf.setFont('helvetica', 'bold');
+                pdf.text(title.toUpperCase(), margin, currentY - lineHeight * 1.5);
+                pdf.setFontSize(10);
+                pdf.setFillColor(tableHeaderColor[0], tableHeaderColor[1], tableHeaderColor[2]); 
+                pdf.rect(margin, currentY - headerHeight, width, headerHeight, 'F'); 
+                pdf.text("Nº", margin + 2, currentY - 2);
+                pdf.text("DESCRIÇÃO", margin + colItem, currentY - 2);
+                pdf.text("VALOR (R$)", margin + width - 1, currentY - 2, { align: 'right' });
+                pdf.setFontSize(9); pdf.setFont('helvetica', 'normal');
+            }
+
+            pdf.text((index + 1).toString(), margin + 2, currentY);
+            pdf.text(item.description, margin + colItem, currentY);
+            pdf.text(formatCurrency(item.value), margin + width - 1, currentY, { align: 'right' });
+            
+            pdf.setLineWidth(0.1); 
+            pdf.setDrawColor(150, 150, 150); 
+            pdf.line(margin, currentY + lineHeight * 0.3, margin + width, currentY + lineHeight * 0.3);
+            
+            currentY += lineHeight;
+        });
+
+        // Desenha o Contorno da Tabela
+        const tableTotalHeight = currentY - (tableStartY - headerHeight); 
+        pdf.setDrawColor(0, 0, 0); 
+        pdf.setLineWidth(0.2); 
+        pdf.rect(margin, tableStartY - headerHeight, width, tableTotalHeight, 'S'); 
+        
+        return currentY + lineHeight * 2;
+    };
     
-    // 6. Campo para Assinatura (A ser paga por...)
-    if (y + 30 > 280) {
+    // 4. Desenha Tabela de Recebíveis
+    y = drawItemTable("Recebíveis", doc.receivables, false, y);
+    
+    // 5. Desenha Tabela de Descontos
+    y = drawItemTable("Descontos", doc.discounts, true, y);
+
+    // 6. Resumo dos Totais (Final)
+    if (y + 40 > 280) {
         pdf.addPage();
         y = 15; 
     }
     
+    const totalsY = y;
+    
+    // Tabela de Totais
+    pdf.setDrawColor(0, 0, 0);
+    pdf.setLineWidth(0.2);
+    pdf.rect(margin + width - 70, totalsY, 70, 25);
+    
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    
+    // Total Recebíveis
+    pdf.text("TOTAL RECEBÍVEIS:", margin + width - 5, totalsY + 5, { align: 'right' });
+    pdf.text(formatCurrency(doc.receivablesTotal), margin + width - 5, totalsY + 10, { align: 'right' });
+    
+    // Total Descontos
+    pdf.text("- TOTAL DESCONTOS:", margin + width - 5, totalsY + 15, { align: 'right' });
+    pdf.text(formatCurrency(doc.discountsTotal), margin + width - 5, totalsY + 20, { align: 'right' });
+
+    // Total Geral (Final)
+    pdf.setLineWidth(0.4);
+    pdf.line(margin + width - 68, totalsY + 21, margin + width - 2, totalsY + 21);
+
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("TOTAL GERAL:", margin + width - 5, totalsY + 26, { align: 'right' });
+    pdf.text(formatCurrency(doc.grandTotal), margin + width - 5, totalsY + 31, { align: 'right' });
+    
+    y = totalsY + 35;
+
+
+    // 7. Campo para Assinatura
     const signatureY = Math.max(y + 10, 250); 
 
     // Linha de assinatura

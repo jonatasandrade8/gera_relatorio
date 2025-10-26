@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         /* Estilos CSS específicos para esta página */
+        .item-list-section { margin-top: 20px; }
         .item-list-section h3 .total-display {
             font-size: 1.2em;
             padding: 5px 10px;
@@ -17,19 +18,19 @@
             color: white;
             float: right;
         }
-        .text-center {
-            text-align: center;
-        }
-        .text-right {
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        
+        #grand-total-section {
+            padding: 10px;
+            margin-top: 15px;
+            border-top: 2px solid var(--secondary-color);
             text-align: right;
-        }
-        .signature-box {
-            margin-top: 40px;
-            padding-top: 15px;
-            border-top: 1px solid #ccc;
-            text-align: center;
-            font-size: 1.1em;
+            font-size: 1.5em;
             font-weight: bold;
+        }
+        #grand-total-section span {
+            color: var(--success-color);
         }
     </style>
 </head>
@@ -44,6 +45,7 @@
                     <li><a href="orcamento.html">Orçamento</a></li>
                     <li><a href="lista-compras.html">Lista de Compras</a></li>
                     <li><a href="requisicao-compra.html">Requisição de Compra</a></li>
+                    <li><a href="ordem-servico.html">Ordem de Serviço</a></li>
                     <li><a href="recibo-entrega.html">Recibo de Entrega</a></li>
                     <li><a href="nota-recebiveis.html">Nota de Recebíveis</a></li>
                 </ul>
@@ -57,80 +59,54 @@
             <h2>Nova Nota de Recebíveis</h2>
 
             <fieldset>
-                <legend>Dados da Nota</legend>
-                <div class="inline-fields">
-                    <div class="field-group">
-                        <label for="debtor-name">Nome do Devedor/Cliente:</label>
-                        <input type="text" id="debtor-name" placeholder="Ex: João da Silva" required>
-                    </div>
-                    <div class="field-group">
-                        <label for="note-number">Nº da Nota/Fatura:</label>
-                        <input type="text" id="note-number" placeholder="Ex: NF-000123 / Fatura #456" required>
-                    </div>
-                </div>
-                
-                <div class="inline-fields">
-                    <div class="field-group">
-                        <label for="issue-date">Data de Emissão:</label>
-                        <input type="date" id="issue-date" required>
-                    </div>
-                    <div class="field-group">
-                        <label for="due-date">Data de Vencimento:</label>
-                        <input type="date" id="due-date" required>
-                    </div>
-                </div>
-
+                <legend>Dados Principais</legend>
                 <div class="field-group">
-                    <label for="issuer-name">Nome da Empresa Credora (Emitente):</label>
-                    <input type="text" id="issuer-name" placeholder="Ex: Tech Serviços LTDA" required>
-                </div>
-                
-                <div class="field-group">
-                    <label for="observations">Observações/Instruções de Pagamento (Opcional):</label>
-                    <textarea id="observations" rows="3" placeholder="Ex: Pagamento via PIX; Multa de 2% após o vencimento."></textarea>
+                    <label for="debtor-name">Nome do Devedor/Cliente:</label>
+                    <input type="text" id="debtor-name" placeholder="Ex: João da Silva" required>
                 </div>
             </fieldset>
 
             <fieldset>
-                <legend>Adicionar Item/Serviço Recebível</legend>
+                <legend>Adicionar Recebível (Item ou Serviço)</legend>
                 
                 <div class="field-group">
-                    <label for="item-description">Descrição do Produto/Serviço:</label>
-                    <input type="text" id="item-description" placeholder="Ex: Desenvolvimento de Website" > 
+                    <label for="receivable-description">Descrição:</label>
+                    <input type="text" id="receivable-description" placeholder="Ex: Desenvolvimento de Website"> 
                 </div>
 
-                <div class="inline-fields three-cols">
-                    <div class="field-group">
-                        <label for="item-value">Valor Unitário (R$):</label>
-                        <input type="number" id="item-value" min="0" value="0.00" step="0.01">
-                    </div>
-                    <div class="field-group">
-                        <label for="item-quantity">Quantidade:</label>
-                        <input type="number" id="item-quantity" min="1" value="1"> 
-                    </div>
-                    <div class="field-group">
-                        <label for="item-total">Total (Calculado):</label>
-                        <input type="text" id="item-total" value="0.00" readonly disabled> 
-                    </div>
+                <div class="field-group">
+                    <label for="receivable-value">Valor (R$):</label>
+                    <input type="number" id="receivable-value" min="0.01" value="0.00" step="0.01">
                 </div>
 
-                <button type="button" id="add-item-btn" class="btn btn-add">Adicionar Item</button>
+                <button type="button" id="add-receivable-btn" class="btn btn-add">Adicionar Recebível</button>
+            </fieldset>
+
+            <fieldset>
+                <legend>Adicionar Desconto</legend>
+                
+                <div class="field-group">
+                    <label for="discount-description">Descrição do Desconto:</label>
+                    <input type="text" id="discount-description" placeholder="Ex: Pagamento Antecipado"> 
+                </div>
+
+                <div class="field-group">
+                    <label for="discount-value">Valor do Desconto (R$):</label>
+                    <input type="number" id="discount-value" min="0.01" value="0.00" step="0.01">
+                </div>
+
+                <button type="button" id="add-discount-btn" class="btn btn-add btn-danger">Adicionar Desconto</button>
             </fieldset>
 
             <section class="card item-list-section">
-                <h3>
-                    Resumo dos Itens 
-                    <span class="total-display" id="grand-total-display">R$ 0,00</span>
-                </h3>
+                <h3>Resumo dos Recebíveis <span class="total-display" id="receivable-total-display">R$ 0,00</span></h3>
                 <div class="table-responsive">
-                    <table id="items-table">
+                    <table id="receivables-table" class="list-table">
                         <thead>
                             <tr>
                                 <th>Item</th>
                                 <th>Descrição</th>
-                                <th class="text-right">Valor Unit. (R$)</th>
-                                <th class="text-right">Qtd</th>
-                                <th class="text-right">Total (R$)</th>
+                                <th class="text-right">Valor (R$)</th>
                                 <th class="text-center">Ação</th>
                             </tr>
                         </thead>
@@ -139,6 +115,28 @@
                     </table>
                 </div>
             </section>
+            
+            <section class="card item-list-section">
+                <h3>Resumo dos Descontos <span class="total-display" id="discount-total-display">R$ 0,00</span></h3>
+                <div class="table-responsive">
+                    <table id="discounts-table" class="list-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Descrição</th>
+                                <th class="text-right">Valor (R$)</th>
+                                <th class="text-center">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div id="grand-total-section">
+                TOTAL GERAL: <span id="grand-total-display">R$ 0,00</span>
+            </div>
             
             <div class="form-actions">
                 <button type="submit" id="save-btn" class="btn btn-primary">Salvar Nota (C/U)</button>
@@ -162,23 +160,6 @@
             const navLinks = document.getElementById('nav-links');
             navLinks.classList.toggle('active');
         });
-        
-        // Lógica para cálculo do total do item (para feedback visual)
-        const itemValueInput = document.getElementById('item-value');
-        const itemQuantityInput = document.getElementById('item-quantity');
-        const itemTotalInput = document.getElementById('item-total');
-
-        function calculateItemTotal() {
-            const value = parseFloat(itemValueInput.value) || 0;
-            const quantity = parseInt(itemQuantityInput.value) || 0;
-            const total = (value * quantity).toFixed(2);
-            itemTotalInput.value = total;
-        }
-
-        itemValueInput.addEventListener('input', calculateItemTotal);
-        itemQuantityInput.addEventListener('input', calculateItemTotal);
-        
-        calculateItemTotal(); // Inicializa o cálculo
     </script>
 </body>
 </html>
