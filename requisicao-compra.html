@@ -4,42 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Requisição de Compra - Gerador de Documentos</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css"> 
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        /* Estilos CSS específicos para esta página */
-        .item-list-section h3 .total-display {
-            font-size: 1.2em;
-            padding: 5px 10px;
-            margin-left: 10px;
-            border-radius: 4px;
-            background: var(--primary-color);
-            color: white;
-            float: right;
-        }
-        .text-center {
-            text-align: center;
-        }
-        .signature-box {
-            margin-top: 40px;
-            padding-top: 15px;
-            border-top: 1px solid #ccc;
-            text-align: center;
-            font-size: 1.1em;
+        /* Estilos CSS específicos para botões de modo */
+        .inline-fields label {
+            margin-right: 15px;
             font-weight: bold;
         }
-        /* Estilo para pré-visualização da logo */
-        #logo-preview-container {
-            margin-top: 10px;
-            text-align: center;
+        .active-mode {
+            background-color: var(--primary-color) !important;
+            color: white !important;
+            border-color: var(--primary-color) !important;
         }
-        #logo-preview {
-            max-width: 100px;
-            max-height: 50px;
-            border: 1px solid #ccc;
-            padding: 2px;
-            display: none; /* Escondida por padrão */
+        /* Estilos para a tabela (mantendo o padrão) */
+        .table-responsive { overflow-x: auto; }
+        .list-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .list-table th, .list-table td { 
+            border: 1px solid #ddd; padding: 8px; text-align: left; 
         }
+        .text-right { text-align: right; }
     </style>
 </head>
 <body>
@@ -51,8 +35,9 @@
             <nav>
                 <ul class="nav-links" id="nav-links">
                     <li><a href="orcamento.html">Orçamento</a></li>
-                    <li><a href="lista-compras.html">Carrinho de Compras</a></li>
+                    <li><a href="lista-compras.html">Lista de Compras</a></li>
                     <li><a href="requisicao-compra.html">Requisição de Compra</a></li>
+                    <li><a href="ordem-servico.html">Ordem de Serviço</a></li>
                     <li><a href="recibo-entrega.html">Recibo de Entrega</a></li>
                     <li><a href="nota-recebiveis.html">Nota de Recebíveis</a></li>
                 </ul>
@@ -66,71 +51,69 @@
             <h2>Nova Requisição de Compra</h2>
 
             <fieldset>
-                <legend>Dados da Requisição e Solicitante (Opcional)</legend>
+                <legend>Dados do Solicitante</legend>
+                <div class="field-group">
+                    <label for="requester-name">Nome do Solicitante:</label>
+                    <input type="text" id="requester-name" placeholder="Ex: Ana Maria" required>
+                </div>
+                
+                <div class="inline-fields">
+                    <label>Modo de Uso:</label>
+                    <button type="button" id="use-personal-btn" class="btn btn-action btn-secondary active-mode">Pessoal</button>
+                    <button type="button" id="use-company-btn" class="btn btn-action btn-secondary">Empresa</button>
+                </div>
+            </fieldset>
+
+            <fieldset id="company-data-fieldset" style="display: none;">
+                <legend>Dados da Empresa</legend>
                 <div class="field-group">
                     <label for="company-name">Nome da Empresa:</label>
-                    <input type="text" id="company-name" placeholder="Ex: Tech Soluções LTDA">
+                    <input type="text" id="company-name" placeholder="Ex: Tech Solutions LTDA">
                 </div>
-                
                 <div class="field-group">
-                    <label for="requester-logo">Logomarca da Empresa (para o PDF):</label>
-                    <input type="file" id="requester-logo" accept="image/*">
-                    <div id="logo-preview-container">
-                        <img id="logo-preview" src="#" alt="Pré-visualização da Logo">
-                    </div>
+                    <label for="cnpj">CNPJ:</label>
+                    <input type="text" id="cnpj" placeholder="Ex: 00.000.000/0001-00">
                 </div>
+            </fieldset>
+            
+            <fieldset>
+                <legend>Detalhes da Requisição</legend>
                 <div class="inline-fields">
                     <div class="field-group">
-                        <label for="requester-name">Nome do Solicitante/Requisitante:</label>
-                        <input type="text" id="requester-name" placeholder="Ex: João da Silva">
+                        <label for="target-area">Área/Setor Destino:</label>
+                        <input type="text" id="target-area" placeholder="Ex: Financeiro / Produção" required>
                     </div>
                     <div class="field-group">
-                        <label for="contact-info">Contato do Solicitante (Tel/Email):</label>
-                        <input type="text" id="contact-info" placeholder="Ex: (84) 99999-0000">
+                        <label for="requisition-date">Data da Requisição:</label>
+                        <input type="date" id="requisition-date" required>
                     </div>
                 </div>
-                
                 <div class="field-group">
-                    <label for="reason">Motivo da Compra/Observações (Opcional):</label>
-                    <textarea id="reason" rows="3" placeholder="Ex: Reposição de estoque urgente; Material para projeto X."></textarea>
+                    <label for="purchase-reason">Motivo da Compra/Urgência:</label>
+                    <textarea id="purchase-reason" rows="2" placeholder="Ex: Reposição de estoque urgente; Novo projeto X."></textarea>
                 </div>
             </fieldset>
 
             <fieldset>
-                <legend>Adicionar Item</legend>
+                <legend>Adicionar Item para Compra</legend>
                 
                 <div class="field-group">
-                    <label for="item-product">Produto/Serviço a Ser Comprado:</label>
-                    <input type="text" id="item-product" placeholder="Ex: Cabo de Rede CAT6"> 
+                    <label for="item-description">Item/Especificação:</label>
+                    <input type="text" id="item-description" placeholder="Ex: Notebook Core i7, 16GB RAM"> 
                 </div>
 
                 <div class="inline-fields three-cols">
                     <div class="field-group">
-                        <label for="item-sector">Setor:</label>
-                        <select id="item-sector">
-                            <option value="">Selecione o Setor</option>
-                            <option value="Mercearia">Mercearia</option>
-                            <option value="Hortifruti">Hortifruti</option>
-                            <option value="Frios">Frios</option>
-                            <option value="Carnes">Carnes</option>
-                            <option value="Produtos de Limpeza">Produtos de Limpeza</option>
-                            <option value="Outros">Outros</option>
-                        </select>
-                    </div>
-                    <div class="field-group">
-                        <label for="item-unit">Unidade de Medida:</label>
-                        <select id="item-unit">
-                            <option value="UN">Unidade</option>
-                            <option value="KG">Kg</option>
-                            <option value="G">Gramas</option>
-                            <option value="MT">Metros</option>
-                            <option value="FD">Fardo</option>
-                            <option value="CX">Caixa</option>
-                        </select>
-                    </div>
-                    <div class="field-group">
-                        <label for="item-quantity">Quantidade Necessária:</label>
+                        <label for="item-quantity">Quantidade:</label>
                         <input type="number" id="item-quantity" min="1" value="1"> 
+                    </div>
+                    <div class="field-group">
+                        <label for="item-value">Valor Estimado Unit. (R$):</label>
+                        <input type="number" id="item-value" min="0" value="0.00" step="0.01">
+                    </div>
+                    <div class="field-group">
+                        <label for="item-total">Total Estimado:</label>
+                        <input type="text" id="item-total" value="0.00" readonly disabled> 
                     </div>
                 </div>
 
@@ -138,16 +121,19 @@
             </fieldset>
 
             <section class="card item-list-section">
-                <h3>Resumo dos Itens</h3>
+                <h3>
+                    Resumo dos Itens Requisitados 
+                    <span class="total-display" id="grand-total-display">R$ 0,00</span>
+                </h3>
                 <div class="table-responsive">
-                    <table id="items-table">
+                    <table id="items-table" class="list-table">
                         <thead>
                             <tr>
-                                <th>Item</th>
-                                <th>Setor</th>
-                                <th>Produto/Serviço</th>
-                                <th>Un. Med.</th>
-                                <th class="text-right">Quantidade</th>
+                                <th>Nº</th>
+                                <th>Descrição/Especificação</th>
+                                <th class="text-right">Qtd</th>
+                                <th class="text-right">Valor Estimado Unit. (R$)</th>
+                                <th class="text-right">Total Estimado (R$)</th>
                                 <th class="text-center">Ação</th>
                             </tr>
                         </thead>
@@ -158,7 +144,7 @@
             </section>
             
             <div class="form-actions">
-                <button type="submit" id="save-btn" class="btn btn-primary">Salvar Requisição (C/U)</button>
+                <button type="submit" id="save-btn" class="btn btn-primary">Salvar Requisição</button>
                 <button type="button" id="clear-form-btn" class="btn btn-secondary">Limpar Formulário</button>
             </div>
         </form>
@@ -179,29 +165,23 @@
             const navLinks = document.getElementById('nav-links');
             navLinks.classList.toggle('active');
         });
+        
+        // Lógica para cálculo do total do item (para feedback visual)
+        const itemValueInput = document.getElementById('item-value');
+        const itemQuantityInput = document.getElementById('item-quantity');
+        const itemTotalInput = document.getElementById('item-total');
 
-        // Lógica de pré-visualização da Logomarca (ID: requester-logo)
-        document.getElementById('requester-logo').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            const preview = document.getElementById('logo-preview');
-            
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            } else {
-                preview.src = '#';
-                preview.style.display = 'none';
-            }
-            
-            // Chama a função de persistência do JS após a mudança do arquivo (assíncrono)
-            if (window.saveRequesterDetails) {
-                 window.saveRequesterDetails();
-            }
-        });
+        function calculateItemTotal() {
+            const value = parseFloat(itemValueInput.value) || 0;
+            const quantity = parseInt(itemQuantityInput.value) || 0;
+            const total = (value * quantity).toFixed(2);
+            itemTotalInput.value = total;
+        }
+
+        itemValueInput.addEventListener('input', calculateItemTotal);
+        itemQuantityInput.addEventListener('input', calculateItemTotal);
+        
+        calculateItemTotal(); // Inicializa o cálculo
     </script>
 </body>
 </html>

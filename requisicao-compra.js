@@ -1,31 +1,20 @@
 // ==================== CONFIGURAÇÕES E UTILIDADES ====================
-const LOCAL_STORAGE_KEY = 'purchase_requisition_data'; // Chave principal de documentos
-const REQUESTER_DETAILS_KEY = 'requisition_requester_details'; // Chave para persistir dados do requisitante
-
-// ORDEM DEFINIDA DOS SETORES PARA O PDF
-const SECTOR_ORDER = ["Mercearia", "Hortifruti", "Frios", "Carnes", "Produtos de Limpeza", "Outros"];
+const LOCAL_STORAGE_KEY = 'requisition_note_data'; 
+const DEFAULTS_KEY = 'requisition_defaults'; 
 
 // VARIÁVEIS GLOBAIS
 let currentRequisitionItems = []; 
-let currentRequesterDetails = {
-    companyName: '',
-    requesterName: '',
-    contactInfo: '',
-    logoBase64: '' // Armazena o Base64 da logo
-};
 
-// Função auxiliar para obter documentos salvos
+// Funções Auxiliares
 function getDocuments() {
     const docs = localStorage.getItem(LOCAL_STORAGE_KEY);
     return docs ? JSON.parse(docs) : [];
 }
 
-// Função auxiliar para salvar documentos
 function saveDocuments(documents) {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(documents));
 }
 
-// Função auxiliar para formatar datas (dd/mm/yyyy)
 function formatDate(date) {
     if (!date) return '--/--/----';
     const d = new Date(date);
@@ -38,75 +27,80 @@ function formatDate(date) {
     return `${day}/${month}/${year}`;
 }
 
-// ==================== LÓGICA DE PERSISTÊNCIA E LOGOMARCA ====================
-
-function handleLogoUpload(file) {
-    return new Promise((resolve) => {
-        if (!file) {
-            resolve(null);
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            resolve(e.target.result); 
-        };
-        reader.readAsDataURL(file);
-    });
+function formatCurrency(value) {
+    return `R$ ${parseFloat(value).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
-// EXPOSTA GLOBALMENTE: Salva detalhes e a logo Base64 no Local Storage
-async function saveRequesterDetails() {
-    currentRequesterDetails.companyName = document.getElementById('company-name').value;
-    currentRequesterDetails.requesterName = document.getElementById('requester-name').value;
-    currentRequesterDetails.contactInfo = document.getElementById('contact-info').value;
+// ==================== LÓGICA DE PERSISTÊNCIA E TOGGLE DA EMPRESA ====================
 
-    const logoFile = document.getElementById('requester-logo').files[0];
-    if (logoFile) {
-        currentRequesterDetails.logoBase64 = await handleLogoUpload(logoFile);
-    } 
-
-    localStorage.setItem(REQUESTER_DETAILS_KEY, JSON.stringify(currentRequesterDetails));
-    
-    if (logoFile) {
-        document.getElementById('requester-logo').value = '';
-    }
-    
-    loadRequesterDetails(); // Atualiza a preview
+function saveDefaults() {
+    const defaults = {
+        requesterName: document.getElementById('requester-name').value,
+        targetArea: document.getElementById('target-area').value,
+        companyName: document.getElementById('company-name').value,
+        cnpj: document.getElementById('cnpj').value,
+        useMode: localStorage.getItem('requisicao_compra_use_mode') || 'pessoal'
+    };
+    localStorage.setItem(DEFAULTS_KEY, JSON.stringify(defaults));
 }
-window.saveRequesterDetails = saveRequesterDetails; 
+window.saveDefaults = saveDefaults;
 
-function loadRequesterDetails() {
-    const storedData = localStorage.getItem(REQUESTER_DETAILS_KEY);
+function loadDefaults() {
+    const storedData = localStorage.getItem(DEFAULTS_KEY);
     if (!storedData) return;
 
     const data = JSON.parse(storedData);
     
-    currentRequesterDetails = data;
-    
-    if (data.companyName) document.getElementById('company-name').value = data.companyName;
     if (data.requesterName) document.getElementById('requester-name').value = data.requesterName;
-    if (data.contactInfo) document.getElementById('contact-info').value = data.contactInfo;
+    if (data.targetArea) document.getElementById('target-area').value = data.targetArea;
+    if (data.companyName) document.getElementById('company-name').value = data.companyName;
+    if (data.cnpj) document.getElementById('cnpj').value = data.cnpj;
 
-    // Pré-visualização da logo
-    const preview = document.getElementById('logo-preview');
-    if (data.logoBase64) {
-        preview.src = data.logoBase64;
-        preview.style.display = 'block';
+    // Carrega o modo de uso
+    const savedMode = data.useMode || 'pessoal';
+    toggleCompanyMode(savedMode === 'empresa', false); // Não salva novamente ao carregar
+}
+
+/**
+ * Alterna a visibilidade da seção de dados da empresa e atualiza os botões.
+ * @param {boolean} isCompanyMode - true para mostrar a seção da empresa, false para esconder.
+ * @param {boolean} shouldSave - Se deve salvar a preferência no localStorage.
+ */
+function toggleCompanyMode(isCompanyMode, shouldSave = true) {
+    const personalBtn = document.getElementById('use-personal-btn');
+    const companyBtn = document.getElementById('use-company-btn');
+    const companyFieldset = document.getElementById('company-data-fieldset');
+    
+    if (isCompanyMode) {
+        companyFieldset.style.display = 'block';
+        companyBtn.classList.add('active-mode');
+        personalBtn.classList.remove('active-mode');
     } else {
-        preview.src = '#';
-        preview.style.display = 'none';
+        companyFieldset.style.display = 'none';
+        personalBtn.classList.add('active-mode');
+        companyBtn.classList.remove('active-mode');
+    }
+
+    if (shouldSave) {
+        localStorage.setItem('requisicao_compra_use_mode', isCompanyMode ? 'empresa' : 'pessoal');
+        saveDefaults();
     }
 }
+window.toggleCompanyMode = toggleCompanyMode; // Expor para uso nos botões
 
 // ==================== INICIALIZAÇÃO E EVENTOS ====================
 document.addEventListener('DOMContentLoaded', () => {
-    // Carrega os dados do requisitante e a logo
-    loadRequesterDetails(); 
+    loadDefaults(); 
     
-    // Listeners para salvar detalhes de texto (ex: ao sair do campo)
-    document.getElementById('company-name').addEventListener('blur', saveRequesterDetails);
-    document.getElementById('requester-name').addEventListener('blur', saveRequesterDetails);
-    document.getElementById('contact-info').addEventListener('blur', saveRequesterDetails);
+    // Listeners para salvar detalhes de texto (ao sair do campo)
+    document.getElementById('requester-name').addEventListener('blur', saveDefaults);
+    document.getElementById('target-area').addEventListener('blur', saveDefaults);
+    document.getElementById('company-name').addEventListener('blur', saveDefaults);
+    document.getElementById('cnpj').addEventListener('blur', saveDefaults);
+
+    // Configuração dos Eventos dos botões de modo
+    document.getElementById('use-personal-btn').addEventListener('click', () => toggleCompanyMode(false));
+    document.getElementById('use-company-btn').addEventListener('click', () => toggleCompanyMode(true));
 
     renderDocumentList();
     updateItemsTable();
@@ -119,31 +113,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ==================== FUNÇÕES DE GERENCIAMENTO DE ITENS (TABELA DINÂMICA) ====================
 
+function calculateGrandTotal() {
+    const total = currentRequisitionItems.reduce((sum, item) => sum + (item.value * item.quantity), 0);
+    document.getElementById('grand-total-display').textContent = formatCurrency(total);
+    return total;
+}
+
 function addItem() {
-    const setorInput = document.getElementById('item-sector');
-    const produtoInput = document.getElementById('item-product');
-    const unidadeInput = document.getElementById('item-unit'); 
-    const quantidadeInput = document.getElementById('item-quantity');
+    const descriptionInput = document.getElementById('item-description');
+    const valueInput = document.getElementById('item-value');
+    const quantityInput = document.getElementById('item-quantity'); 
 
-    const setor = setorInput.value;
-    const produto = produtoInput.value.trim();
-    const unidade = unidadeInput.value; 
-    const quantidade = parseInt(quantidadeInput.value);
+    const description = descriptionInput.value.trim();
+    const value = parseFloat(valueInput.value) || 0;
+    const quantity = parseInt(quantityInput.value);
 
-    // VALIDAÇÃO JS: ESSENCIAL APÓS REMOVER 'REQUIRED' DO HTML
-    if (!setor || !produto || !unidade || isNaN(quantidade) || quantidade <= 0) {
-        alert("Por favor, preencha todos os campos (Setor, Produto, Unidade e Quantidade) antes de adicionar.");
+    // VALIDAÇÃO JS: Requer Descrição e Quantidade > 0
+    if (!description || isNaN(quantity) || quantity <= 0) {
+        alert("Por favor, preencha a Descrição e a Quantidade (maior que zero) antes de adicionar.");
         return;
     }
 
-    const newItem = { setor, produto, unidade, quantidade };
+    // Garante que o valor é válido
+    if (isNaN(value) || value < 0) {
+        alert("O Valor Estimado Unitário deve ser um número não negativo.");
+        return;
+    }
+
+    const newItem = { description, value, quantity };
 
     currentRequisitionItems.push(newItem);
     updateItemsTable();
 
-    produtoInput.value = '';
-    quantidadeInput.value = '1';
-    produtoInput.focus();
+    descriptionInput.value = '';
+    valueInput.value = '0.00';
+    quantityInput.value = '1';
+    
+    // Atualiza o campo total calculado
+    document.getElementById('item-total').value = '0.00';
+    
+    descriptionInput.focus();
 }
 
 // EXPOSTA GLOBALMENTE: Remove item da lista
@@ -160,21 +169,23 @@ function updateItemsTable() {
 
     if (currentRequisitionItems.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="6" class="text-center" style="color: var(--secondary-color);">Nenhum item adicionado à requisição.</td></tr>';
-        return;
     }
 
     currentRequisitionItems.forEach((item, index) => {
+        const itemTotal = item.value * item.quantity;
         const row = tableBody.insertRow();
         
         row.innerHTML = `
             <td class="text-center">${index + 1}</td>
-            <td>${item.setor}</td>
-            <td>${item.produto}</td>
-            <td>${item.unidade}</td>
-            <td class="text-right">${item.quantidade}</td>
+            <td>${item.description}</td>
+            <td class="text-right">${item.quantity}</td>
+            <td class="text-right">${formatCurrency(item.value)}</td>
+            <td class="text-right">${formatCurrency(itemTotal)}</td>
             <td class="text-center"><button type="button" class="btn btn-action btn-danger" onclick="window.removeItem(${index})">Remover</button></td>
         `;
     });
+    
+    calculateGrandTotal();
 }
 
 // ==================== FUNÇÕES CRUD (CREATE, READ, UPDATE) ====================
@@ -182,30 +193,40 @@ function updateItemsTable() {
 async function handleSubmit(e) { 
     e.preventDefault();
     
-    // Garante que a logo base64 está no currentRequesterDetails ANTES de criar o documento
-    await saveRequesterDetails(); 
-    
-    // VALIDAÇÃO PRINCIPAL: Verifica se há itens na lista (corrigindo o problema do submit)
+    const form = e.target;
+    if (!form.checkValidity()) {
+        form.reportValidity(); 
+        return;
+    }
+
     if (currentRequisitionItems.length === 0) {
-        alert('Adicione pelo menos um item à requisição antes de salvar.');
+        alert('Adicione pelo menos um item à Requisição de Compra antes de salvar.');
         return;
     }
     
-    const form = e.target;
+    saveDefaults(); 
+
     const documentId = form.dataset.editingId;
+    const grandTotal = calculateGrandTotal();
+    const useMode = localStorage.getItem('requisicao_compra_use_mode') || 'pessoal';
     
     const newDocument = {
         id: documentId ? documentId : Date.now().toString(),
         tipo: 'REQUISICAO_COMPRA',
         dataCriacao: new Date().toISOString().split('T')[0],
         
-        companyName: currentRequesterDetails.companyName,
-        requesterName: currentRequesterDetails.requesterName,
-        contactInfo: currentRequesterDetails.contactInfo,
-        reason: document.getElementById('reason').value,
-        logoBase64: currentRequesterDetails.logoBase64, 
+        requesterName: document.getElementById('requester-name').value,
+        targetArea: document.getElementById('target-area').value,
+        requisitionDate: document.getElementById('requisition-date').value,
+        purchaseReason: document.getElementById('purchase-reason').value,
+        useMode: useMode,
 
+        // Incluir dados da empresa somente se estiver no modo empresa
+        companyName: useMode === 'empresa' ? document.getElementById('company-name').value : '',
+        cnpj: useMode === 'empresa' ? document.getElementById('cnpj').value : '',
+        
         items: [...currentRequisitionItems],
+        totalValue: grandTotal
     };
 
     let documents = getDocuments();
@@ -214,7 +235,7 @@ async function handleSubmit(e) {
         documents = documents.map(doc => doc.id === documentId ? newDocument : doc);
         alert('Requisição atualizada com sucesso!');
         form.removeAttribute('data-editing-id');
-        document.getElementById('save-btn').textContent = 'Salvar Requisição (C/U)';
+        document.getElementById('save-btn').textContent = 'Salvar Requisição';
     } else {
         documents.push(newDocument);
         alert('Requisição salva com sucesso!');
@@ -229,12 +250,12 @@ async function handleSubmit(e) {
 function clearForm(form) {
     form.reset();
     form.removeAttribute('data-editing-id');
-    document.getElementById('save-btn').textContent = 'Salvar Requisição (C/U)';
+    document.getElementById('save-btn').textContent = 'Salvar Requisição';
     
     currentRequisitionItems = [];
     updateItemsTable();
 
-    loadRequesterDetails(); 
+    loadDefaults(); // Recarrega os defaults, incluindo o modo de uso
 }
 
 // EXPOSTA GLOBALMENTE: Carrega dados para edição
@@ -247,23 +268,25 @@ function editDocument(id) {
         return;
     }
 
-    document.getElementById('company-name').value = doc.companyName || '';
     document.getElementById('requester-name').value = doc.requesterName || '';
-    document.getElementById('contact-info').value = doc.contactInfo || '';
-    document.getElementById('reason').value = doc.reason || '';
+    document.getElementById('target-area').value = doc.targetArea || '';
+    document.getElementById('requisition-date').value = doc.requisitionDate || '';
+    document.getElementById('purchase-reason').value = doc.purchaseReason || '';
     
-    currentRequesterDetails.logoBase64 = doc.logoBase64 || '';
-    
-    // Atualiza a persistência local e a preview
-    saveRequesterDetails(); 
-    loadRequesterDetails(); 
+    // Carregar e aplicar o modo de uso da requisição salva
+    const useCompanyMode = doc.useMode === 'empresa';
+    toggleCompanyMode(useCompanyMode);
+
+    // Carregar dados da empresa (serão visíveis se useCompanyMode for true)
+    document.getElementById('company-name').value = doc.companyName || '';
+    document.getElementById('cnpj').value = doc.cnpj || '';
 
     currentRequisitionItems = doc.items || [];
     updateItemsTable(); 
 
     const form = document.getElementById('requisition-form');
     form.setAttribute('data-editing-id', id);
-    document.getElementById('save-btn').textContent = 'Atualizar Requisição (U)';
+    document.getElementById('save-btn').textContent = 'Atualizar Requisição';
     
     window.scrollTo(0, 0); 
 }
@@ -272,22 +295,22 @@ window.editDocument = editDocument;
 function renderDocumentList() {
     const list = document.getElementById('document-list');
     list.innerHTML = '';
-    const documents = getDocuments();
+    const documents = getDocuments().filter(doc => doc.tipo === 'REQUISICAO_COMPRA');
 
     if (documents.length === 0) {
-        list.innerHTML = '<li>Nenhuma requisição de compra salva.</li>';
+        list.innerHTML = '<li>Nenhuma Requisição de Compra salva.</li>';
         return;
     }
 
     documents.forEach(doc => {
         const li = document.createElement('li');
         
-        const empresaDisplay = doc.companyName || '[Empresa Não Informada]';
-        const requisitanteDisplay = doc.requesterName || '[Requisitante Não Informado]';
+        const modo = doc.useMode === 'empresa' ? doc.companyName : doc.requesterName;
+        const total = formatCurrency(doc.totalValue);
 
         li.innerHTML = `
             <div class="info">
-                <span><strong>REQ #${doc.id.substring(8)}</strong> - Empresa: ${empresaDisplay} | Solicitante: ${requisanteDisplay}</span>
+                <span><strong>REQ #${doc.id.substring(8)}</strong> - Solicitante: ${modo} | Setor: ${doc.targetArea} | Total Est.: ${total}</span>
             </div>
             <div class="actions">
                 <button class="btn btn-action btn-primary" onclick="window.editDocument('${doc.id}')">Editar</button>
@@ -301,13 +324,13 @@ function renderDocumentList() {
 
 // EXPOSTA GLOBALMENTE: Exclui documento
 function deleteDocument(id) {
-    if (!confirm('Tem certeza que deseja excluir esta requisição de compra?')) return;
+    if (!confirm('Tem certeza que deseja excluir esta Requisição de Compra?')) return;
 
     let documents = getDocuments();
     documents = documents.filter(doc => doc.id !== id);
     saveDocuments(documents);
     renderDocumentList();
-    alert('Requisição de compra excluída.');
+    alert('Requisição de Compra excluída.');
 }
 window.deleteDocument = deleteDocument;
 
@@ -328,45 +351,19 @@ function generateAndDownloadPDF(id) {
     const lineHeight = 6;
     let y = 15;
     
-    // 1. Logomarca e Título
-    const LOGO_HEIGHT = 20; 
-    const LOGO_WIDTH = 50;  
-    const TITLE_START_Y = 15; 
-    let titleY = TITLE_START_Y;
-
-    if (doc.logoBase64) {
-        try {
-            const imgData = doc.logoBase64;
-            const imgType = imgData.split(':')[1].split(';')[0].split('/')[1].toUpperCase(); 
-
-            pdf.addImage(imgData, imgType, margin, TITLE_START_Y, LOGO_WIDTH, LOGO_HEIGHT);
-            
-            y = TITLE_START_Y + LOGO_HEIGHT + 5; 
-            titleY = TITLE_START_Y + LOGO_HEIGHT / 2; 
-
-        } catch (error) {
-            console.error("Erro ao adicionar logomarca ao PDF:", error);
-            y = TITLE_START_Y; 
-            titleY = TITLE_START_Y + 5;
-        }
-    } else {
-        y = TITLE_START_Y; 
-        titleY = TITLE_START_Y + 5;
-    }
-    
-    // Título
+    // 1. Título
     pdf.setFontSize(24);
     pdf.setFont('helvetica', 'bold');
-    pdf.text("REQUISIÇÃO DE COMPRA", margin + width / 2, titleY, { align: 'center' }); 
+    pdf.text("REQUISIÇÃO DE COMPRA", margin + width / 2, y, { align: 'center' }); 
+    y += lineHeight * 2;
     
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(`ID: #${doc.id.substring(8)}`, margin + width, titleY - 5, { align: 'right' }); 
-    pdf.text(`Data: ${formatDate(doc.dataCriacao)}`, margin + width, titleY + 2, { align: 'right' });
+    pdf.text(`ID: #${doc.id.substring(8)}`, margin + width, y - lineHeight, { align: 'right' }); 
+    pdf.text(`Data de Emissão: ${formatDate(doc.dataCriacao)}`, margin + width, y, { align: 'right' });
+    y += lineHeight;
 
-    y = y + lineHeight; 
-
-    // 2. Detalhes do Requisitante/Empresa
+    // 2. Dados do Solicitante
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
     pdf.text("DADOS DO SOLICITANTE", margin, y);
@@ -374,130 +371,123 @@ function generateAndDownloadPDF(id) {
     y += lineHeight;
 
     pdf.setFont('helvetica', 'normal');
-    
-    const company = doc.companyName || 'Não Informado';
-    const requester = doc.requesterName || 'Não Informado';
-    const contact = doc.contactInfo || 'Não Informado';
-
-    pdf.text(`Empresa: ${company}`, margin, y);
-    pdf.text(`Requisitante: ${requester}`, margin + width / 2, y);
+    pdf.text(`Nome do Solicitante: ${doc.requesterName || 'N/I'}`, margin, y);
     y += lineHeight;
 
-    pdf.text(`Contato: ${contact}`, margin, y);
-    y += lineHeight;
-
-    if (doc.reason) {
-        pdf.text(`Motivo/Obs: ${doc.reason}`, margin, y);
+    if (doc.useMode === 'empresa') {
+        pdf.text(`Modo de Uso: EMPRESA`, margin + width / 2, y);
+        y += lineHeight;
+        pdf.text(`Empresa: ${doc.companyName || 'N/I'}`, margin, y);
+        pdf.text(`CNPJ: ${doc.cnpj || 'N/I'}`, margin + width / 2, y);
+        y += lineHeight;
+    } else {
+        pdf.text(`Modo de Uso: PESSOAL`, margin + width / 2, y);
         y += lineHeight;
     }
     y += lineHeight;
 
+    // 3. Detalhes da Requisição
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("DETALHES DA REQUISIÇÃO", margin, y);
+    pdf.line(margin, y + 1, margin + width, y + 1);
+    y += lineHeight;
 
-    // 3. Agrupamento dos Itens por Setor
-    const groupedItems = doc.items.reduce((acc, item) => {
-        const sector = item.setor || "Outros"; 
-        if (!acc[sector]) { acc[sector] = []; }
-        acc[sector].push(item);
-        return acc;
-    }, {});
-    
-    const sectorsToPrint = SECTOR_ORDER.filter(sector => groupedItems[sector]);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Área Destino: ${doc.targetArea || 'N/I'}`, margin, y);
+    pdf.text(`Data Requisitada: ${formatDate(doc.requisitionDate)}`, margin + width / 2, y);
+    y += lineHeight;
 
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("Motivo da Compra:", margin, y);
+    y += lineHeight * 0.5;
+    pdf.setFont('helvetica', 'normal');
+    const reasonText = pdf.splitTextToSize(doc.purchaseReason || 'N/I', width);
+    pdf.text(reasonText, margin, y);
+    y += reasonText.length * 5 + 5; 
 
-    // 4. Criação das Tabelas por Setor
+    // 4. Tabela de Itens
+    if (y > 250) { 
+        pdf.addPage();
+        y = 15; 
+    }
+
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("ITENS REQUISITADOS", margin, y);
+    pdf.line(margin, y + 1, margin + width, y + 1);
+    y += lineHeight * 2;
+
+    const tableStartY = y;
     const headerHeight = 7;
-    const borderRadius = 2;
     const tableHeaderColor = [220, 230, 240]; 
-    const tableLineColor = [150, 150, 150]; 
-    
     const colItem = 10;
-    const colProduto = 80; 
-    const colUnit = 25; 
+    const colDescricao = 80; 
+    const colQtd = 20; 
     
-    sectorsToPrint.forEach((sectorName) => {
-        const items = groupedItems[sectorName];
-        
-        if (y + 30 > 280) { 
+    // Cabeçalho da Tabela
+    pdf.setFillColor(tableHeaderColor[0], tableHeaderColor[1], tableHeaderColor[2]); 
+    pdf.rect(margin, tableStartY - headerHeight, width, headerHeight, 'F'); 
+
+    pdf.text("Nº", margin + 2, tableStartY - 2);
+    pdf.text("DESCRIÇÃO/ESPECIFICAÇÃO", margin + colItem, tableStartY - 2);
+    pdf.text("QTD", margin + colItem + colDescricao + 10, tableStartY - 2, { align: 'right' });
+    pdf.text("VALOR UNIT.", margin + colItem + colDescricao + colQtd + 20, tableStartY - 2, { align: 'right' });
+    pdf.text("TOTAL ESTIMADO", margin + width - 1, tableStartY - 2, { align: 'right' });
+    
+    let tableCurrentY = tableStartY + lineHeight * 0.5;
+
+    // Linhas de Itens
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    
+    doc.items.forEach((item, index) => {
+        const itemTotal = item.value * item.quantity;
+
+        if (tableCurrentY > 270) { 
             pdf.addPage();
-            y = 15;
+            tableCurrentY = 15 + headerHeight; 
+            
+            // Recria cabeçalho
+            pdf.setFontSize(10);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFillColor(tableHeaderColor[0], tableHeaderColor[1], tableHeaderColor[2]); 
+            pdf.rect(margin, tableCurrentY - headerHeight, width, headerHeight, 'F'); 
+            pdf.text("Nº", margin + 2, tableCurrentY - 2);
+            pdf.text("DESCRIÇÃO/ESPECIFICAÇÃO", margin + colItem, tableCurrentY - 2);
+            pdf.text("QTD", margin + colItem + colDescricao + 10, tableCurrentY - 2, { align: 'right' });
+            pdf.text("VALOR UNIT.", margin + colItem + colDescricao + colQtd + 20, tableCurrentY - 2, { align: 'right' });
+            pdf.text("TOTAL ESTIMADO", margin + width - 1, tableCurrentY - 2, { align: 'right' });
+            pdf.setFontSize(9);
+            pdf.setFont('helvetica', 'normal');
         }
 
-        // Título do Setor
-        pdf.setFontSize(11); 
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(sectorName.toUpperCase(), margin, y);
-        y += lineHeight * 1.5;
-
-        const tableStartY = y;
-        let tableCurrentY = y;
+        pdf.text((index + 1).toString(), margin + 2, tableCurrentY);
+        pdf.text(item.description, margin + colItem, tableCurrentY);
+        pdf.text(item.quantity.toString(), margin + colItem + colDescricao + colQtd + 10, tableCurrentY, { align: 'right' });
+        pdf.text(formatCurrency(item.value), margin + colItem + colDescricao + colQtd + 50, tableCurrentY, { align: 'right' });
+        pdf.text(formatCurrency(itemTotal), margin + width - 1, tableCurrentY, { align: 'right' });
         
-        // Cabeçalho da Tabela
-        pdf.setFontSize(10);
-        pdf.setFont('helvetica', 'bold');
+        pdf.line(margin, tableCurrentY + lineHeight * 0.3, margin + width, tableCurrentY + lineHeight * 0.3);
         
-        pdf.setFillColor(tableHeaderColor[0], tableHeaderColor[1], tableHeaderColor[2]); 
-        pdf.rect(margin, tableCurrentY - headerHeight, width, headerHeight, 'F'); 
-
-        pdf.text("Nº", margin + 2, tableCurrentY - 2);
-        pdf.text("PRODUTO / SERVIÇO", margin + colItem, tableCurrentY - 2);
-        pdf.text("UN. MEDIDA", margin + colItem + colProduto, tableCurrentY - 2);
-        pdf.text("QUANTIDADE", margin + width - 1, tableCurrentY - 2, { align: 'right' });
         tableCurrentY += lineHeight;
-
-        // Linhas de Itens
-        pdf.setFontSize(9);
-        pdf.setFont('helvetica', 'normal');
-        
-        items.forEach((item, index) => {
-            if (tableCurrentY > 270) { 
-                pdf.addPage();
-                tableCurrentY = 15 + headerHeight; 
-                tableStartY = 15;
-                
-                // Recria Título do Setor
-                pdf.setFontSize(11);
-                pdf.setFont('helvetica', 'bold');
-                pdf.text(sectorName.toUpperCase(), margin, tableCurrentY - lineHeight * 1.5);
-                
-                // Recria o cabeçalho da tabela
-                pdf.setFontSize(10);
-                pdf.setFont('helvetica', 'bold');
-                pdf.setFillColor(tableHeaderColor[0], tableHeaderColor[1], tableHeaderColor[2]); 
-                pdf.rect(margin, tableCurrentY - headerHeight, width, headerHeight, 'F'); 
-                pdf.text("Nº", margin + 2, tableCurrentY - 2);
-                pdf.text("PRODUTO / SERVIÇO", margin + colItem, tableCurrentY - 2);
-                pdf.text("UN. MEDIDA", margin + colItem + colProduto, tableCurrentY - 2);
-                pdf.text("QUANTIDADE", margin + width - 1, tableCurrentY - 2, { align: 'right' });
-                pdf.setFontSize(9);
-                pdf.setFont('helvetica', 'normal');
-            }
-
-            pdf.text((index + 1).toString(), margin + 2, tableCurrentY);
-            pdf.text(item.produto, margin + colItem, tableCurrentY);
-            pdf.text(item.unidade, margin + colItem + colProduto, tableCurrentY);
-            pdf.text(item.quantidade.toString(), margin + width - 1, tableCurrentY, { align: 'right' });
-            
-            pdf.setLineWidth(0.1); 
-            pdf.setDrawColor(tableLineColor[0], tableLineColor[1], tableLineColor[2]); 
-            pdf.line(margin, tableCurrentY + lineHeight * 0.5, margin + width, tableCurrentY + lineHeight * 0.5);
-            
-            tableCurrentY += lineHeight;
-        });
-
-        // Desenha o Contorno da Tabela
-        const tableTotalHeight = tableCurrentY - (tableStartY - headerHeight); 
-
-        pdf.setDrawColor(0, 0, 0); 
-        pdf.setLineWidth(0.2); 
-        
-        pdf.rect(margin, tableStartY - headerHeight, width, tableTotalHeight, 'S', borderRadius); 
-
-        pdf.setLineWidth(0.4); 
-        pdf.line(margin, tableStartY - headerHeight + headerHeight, margin + width, tableStartY - headerHeight + headerHeight); 
-        
-        y = tableCurrentY + lineHeight * 2; 
     });
+
+    // Desenha o Contorno e Total
+    const tableTotalHeight = tableCurrentY - (tableStartY - headerHeight); 
+    pdf.setDrawColor(0, 0, 0); 
+    pdf.setLineWidth(0.2); 
+    pdf.rect(margin, tableStartY - headerHeight, width, tableTotalHeight + 6, 'S'); 
+
+    // Total Geral
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFillColor(255, 255, 200); 
+    pdf.rect(margin + width - 50, tableCurrentY + 1, 50, 5, 'F'); 
+    pdf.text("TOTAL EST. GERAL:", margin + width - 55, tableCurrentY + 4, { align: 'right' });
+    pdf.text(formatCurrency(doc.totalValue), margin + width - 1, tableCurrentY + 4, { align: 'right' });
     
+    y = tableCurrentY + lineHeight * 2; 
+
     // 5. Campo para Assinatura
     if (y + 30 > 280) {
         pdf.addPage();
@@ -506,14 +496,16 @@ function generateAndDownloadPDF(id) {
     
     const signatureY = Math.max(y + 10, 250); 
 
-    // Linha de assinatura
+    // Linhas de assinatura
     pdf.setDrawColor(0, 0, 0);
     pdf.setLineWidth(0.5);
-    pdf.line(margin + 50, signatureY, margin + width - 50, signatureY);
+    pdf.line(margin + 20, signatureY, margin + 80, signatureY);
+    pdf.line(margin + width - 80, signatureY, margin + width - 20, signatureY);
     
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
-    pdf.text("Assinatura do Solicitante", margin + width / 2, signatureY + 4, { align: 'center' });
+    pdf.text(`Solicitante: ${doc.requesterName}`, margin + 50, signatureY + 4, { align: 'center' });
+    pdf.text(`Aprovação (Setor Compras)`, margin + width - 50, signatureY + 4, { align: 'center' });
 
 
     pdf.save(`REQUISICAO_COMPRA_${doc.id.substring(8)}.pdf`);
