@@ -89,11 +89,18 @@ function addReceivableItem() {
     const valueInput = document.getElementById('receivable-value');
 
     const description = descriptionInput.value.trim();
-    const value = parseFloat(valueInput.value);
+    // Usa parseFloat() e, se for NaN ou vazio, assume 0.
+    const value = parseFloat(valueInput.value) || 0; 
 
-    // VALIDAÇÃO JS
-    if (!description || isNaN(value) || value <= 0) {
-        alert("Por favor, preencha a Descrição e o Valor (positivo) do recebível.");
+    // VALIDAÇÃO JS: Requer APENAS a descrição. O valor pode ser 0.
+    if (!description) {
+        alert("Por favor, preencha a Descrição do recebível.");
+        return;
+    }
+    
+    // Garante que o valor é um número válido e não negativo
+    if (isNaN(value) || value < 0) {
+        alert("O Valor deve ser um número não negativo.");
         return;
     }
 
@@ -112,14 +119,21 @@ function addDiscountItem() {
     const valueInput = document.getElementById('discount-value');
 
     const description = descriptionInput.value.trim();
-    const value = parseFloat(valueInput.value);
+    // Usa parseFloat() e, se for NaN ou vazio, assume 0.
+    const value = parseFloat(valueInput.value) || 0; 
 
-    // VALIDAÇÃO JS
-    if (!description || isNaN(value) || value <= 0) {
-        alert("Por favor, preencha a Descrição e o Valor (positivo) do desconto.");
+    // VALIDAÇÃO JS: Requer APENAS a descrição. O valor pode ser 0.
+    if (!description) {
+        alert("Por favor, preencha a Descrição do desconto.");
         return;
     }
 
+    // Garante que o valor é um número válido e não negativo
+    if (isNaN(value) || value < 0) {
+        alert("O Valor deve ser um número não negativo.");
+        return;
+    }
+    
     const newItem = { description, value };
     currentDiscountItems.push(newItem);
     updateItemsTables();
@@ -190,10 +204,6 @@ async function handleSubmit(e) {
     e.preventDefault();
     
     const form = e.target;
-    if (!form.checkValidity()) {
-        form.reportValidity(); 
-        return;
-    }
 
     // VALIDAÇÃO ESSENCIAL: Garante que a nota tenha pelo menos um recebível
     if (currentReceivableItems.length === 0) {
@@ -211,7 +221,7 @@ async function handleSubmit(e) {
         tipo: 'NOTA_RECEBIVEIS_SIMPLES',
         dataCriacao: new Date().toISOString().split('T')[0],
         
-        debtorName: document.getElementById('debtor-name').value,
+        debtorName: document.getElementById('debtor-name').value || 'NÃO INFORMADO', 
         
         receivables: [...currentReceivableItems],
         discounts: [...currentDiscountItems],

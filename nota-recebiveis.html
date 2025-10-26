@@ -61,8 +61,8 @@
             <fieldset>
                 <legend>Dados Principais</legend>
                 <div class="field-group">
-                    <label for="debtor-name">Nome para a nota:</label>
-                    <input type="text" id="debtor-name" placeholder="Ex: João da Silva" required>
+                    <label for="debtor-name">Nome do Devedor/Cliente:</label>
+                    <input type="text" id="debtor-name" placeholder="Ex: João da Silva">
                 </div>
             </fieldset>
 
@@ -76,7 +76,7 @@
 
                 <div class="field-group">
                     <label for="receivable-value">Valor (R$):</label>
-                    <input type="number" id="receivable-value" min="0.01" value="0.00" step="0.01">
+                    <input type="number" id="receivable-value" min="0" value="0.00" step="0.01">
                 </div>
 
                 <button type="button" id="add-receivable-btn" class="btn btn-add">Adicionar Recebível</button>
@@ -92,7 +92,7 @@
 
                 <div class="field-group">
                     <label for="discount-value">Valor do Desconto (R$):</label>
-                    <input type="number" id="discount-value" min="0.01" value="0.00" step="0.01">
+                    <input type="number" id="discount-value" min="0" value="0.00" step="0.01">
                 </div>
 
                 <button type="button" id="add-discount-btn" class="btn btn-add btn-danger">Adicionar Desconto</button>
