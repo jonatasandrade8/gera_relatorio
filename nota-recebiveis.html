@@ -32,7 +32,7 @@
         #grand-total-section span {
             color: var(--success-color);
         }
-        /* Novo estilo para o campo de checkbox */
+        /* NOVO: Estilo para o campo de checkbox */
         .signature-option {
             display: flex;
             align-items: center;
@@ -69,20 +69,20 @@
             <h2>Nova Nota de Recebíveis</h2>
 
             <fieldset>
-                <legend>Dados do Recebedor (Emissor da Nota)</legend>
+                <legend>Dados do Recebedor (Emissor)</legend>
                 <div class="field-group">
-                    <label for="emitter-name">Nome Completo do Recebedor:</label>
-                    <input type="text" id="emitter-name" placeholder="Ex: Maria Oliveira">
+                    <label for="receiver-name">Nome Completo do Recebedor:</label>
+                    <input type="text" id="receiver-name" placeholder="Ex: Maria Oliveira">
                 </div>
             </fieldset>
 
             <fieldset>
                 <legend>Dados do Devedor/Cliente</legend>
                 <div class="field-group">
-                    <label for="debtor-name">Nome do Devedor/Cliente:</label>
+                    <label for="debtor-name">Nome Completo do Devedor/Cliente:</label>
                     <input type="text" id="debtor-name" placeholder="Ex: João da Silva">
                 </div>
-
+                
                 <div class="signature-option">
                     <input type="checkbox" id="require-signature" checked>
                     <label for="require-signature">Incluir Linha para Assinatura no PDF (Opcional)</label>
