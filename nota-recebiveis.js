@@ -1,11 +1,12 @@
 // ==================== CONFIGURAÇÕES E UTILIDADES ====================
 const LOCAL_STORAGE_KEY = 'receivables_note_data'; 
-const DEBTOR_DETAILS_KEY = 'receivables_debtor_details'; 
+// Chave para persistir DADOS DO FORMULÁRIO (Recebedor e Devedor)
+const FORM_DETAILS_KEY = 'receivables_form_details'; 
 
 // VARIÁVEIS GLOBAIS
 let currentReceivableItems = []; 
 let currentDiscountItems = []; 
-let currentDebtorDetails = {}; 
+let currentFormDetails = {}; // Armazenará emitterName, debtorName e requireSignature
 
 // Funções Auxiliares
 function getDocuments() {
@@ -34,30 +35,49 @@ function formatCurrency(value) {
     return `R$ ${parseFloat(value).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
-// ==================== LÓGICA DE PERSISTÊNCIA (DADOS DO RECEBEDOR) ====================
+// ==================== LÓGICA DE PERSISTÊNCIA (DADOS DO FORMULÁRIO) ====================
 
-function saveDebtorDetails() {
-    currentDebtorDetails.debtorName = document.getElementById('debtor-name').value;
-    localStorage.setItem(DEBTOR_DETAILS_KEY, JSON.stringify(currentDebtorDetails));
+function saveFormDetails() {
+    currentFormDetails.emitterName = document.getElementById('emitter-name').value;
+    currentFormDetails.debtorName = document.getElementById('debtor-name').value;
+    currentFormDetails.requireSignature = document.getElementById('require-signature').checked;
+    localStorage.setItem(FORM_DETAILS_KEY, JSON.stringify(currentFormDetails));
 }
-window.saveDebtorDetails = saveDebtorDetails; 
+window.saveFormDetails = saveFormDetails; 
 
-function loadDebtorDetails() {
-    const storedData = localStorage.getItem(DEBTOR_DETAILS_KEY);
-    if (!storedData) return;
+function loadFormDetails() {
+    const storedData = localStorage.getItem(FORM_DETAILS_KEY);
+    
+    // Se não houver dados armazenados, usa um objeto inicial e salva para persistir o padrão.
+    if (!storedData) {
+        currentFormDetails = {
+            emitterName: '',
+            debtorName: '',
+            requireSignature: true // Padrão: incluir linha de assinatura
+        };
+        saveFormDetails();
+        return;
+    }
 
     const data = JSON.parse(storedData);
-    currentDebtorDetails = data;
+    currentFormDetails = data;
     
+    // Aplica os valores armazenados aos campos do formulário
+    if (data.emitterName) document.getElementById('emitter-name').value = data.emitterName;
     if (data.debtorName) document.getElementById('debtor-name').value = data.debtorName;
+    // O valor do checkbox deve ser booleano
+    document.getElementById('require-signature').checked = (data.requireSignature !== undefined ? data.requireSignature : true);
 }
 
 // ==================== INICIALIZAÇÃO E EVENTOS ====================
 document.addEventListener('DOMContentLoaded', () => {
-    loadDebtorDetails(); 
+    loadFormDetails(); 
     
     // Listeners para salvar detalhes de texto (ex: ao sair do campo)
-    document.getElementById('debtor-name').addEventListener('blur', saveDebtorDetails);
+    document.getElementById('emitter-name').addEventListener('blur', saveFormDetails);
+    document.getElementById('debtor-name').addEventListener('blur', saveFormDetails);
+    // Listener para salvar o estado do checkbox
+    document.getElementById('require-signature').addEventListener('change', saveFormDetails);
 
     renderDocumentList();
     updateItemsTables(); // Inicializa ambas as tabelas
@@ -66,7 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('add-receivable-btn').addEventListener('click', addReceivableItem);
     document.getElementById('add-discount-btn').addEventListener('click', addDiscountItem);
     document.getElementById('receivable-form').addEventListener('submit', handleSubmit);
-    document.getElementById('clear-form-btn').addEventListener('click', () => clearForm(document.getElementById('receivable-form')));
+    // Chama saveFormDetails antes de resetar o formulário, para garantir a persistência dos dados do recebedor/devedor
+    document.getElementById('clear-form-btn').addEventListener('click', () => {
+        saveFormDetails();
+        clearForm(document.getElementById('receivable-form'));
+    });
 });
 
 // ==================== FUNÇÕES DE GERENCIAMENTO DE ITENS (TABELAS DINÂMICAS) ====================
@@ -211,7 +235,7 @@ async function handleSubmit(e) {
         return;
     }
     
-    saveDebtorDetails(); 
+    saveFormDetails(); 
 
     const documentId = form.dataset.editingId;
     const totals = calculateTotals();
@@ -221,7 +245,9 @@ async function handleSubmit(e) {
         tipo: 'NOTA_RECEBIVEIS_SIMPLES',
         dataCriacao: new Date().toISOString().split('T')[0],
         
+        emitterName: document.getElementById('emitter-name').value || 'NÃO INFORMADO',
         debtorName: document.getElementById('debtor-name').value || 'NÃO INFORMADO', 
+        requireSignature: document.getElementById('require-signature').checked,
         
         receivables: [...currentReceivableItems],
         discounts: [...currentDiscountItems],
@@ -246,6 +272,7 @@ async function handleSubmit(e) {
     saveDocuments(documents);
     renderDocumentList();
     
+    // Recarrega os dados persistidos (recebedor/devedor) após limpar o form
     clearForm(form);
 }
 
@@ -258,7 +285,8 @@ function clearForm(form) {
     currentDiscountItems = [];
     updateItemsTables();
 
-    loadDebtorDetails(); 
+    // Carrega novamente os detalhes persistidos do Recebedor/Devedor/Checkbox
+    loadFormDetails(); 
 }
 
 // EXPOSTA GLOBALMENTE: Carrega dados para edição
@@ -271,10 +299,13 @@ function editDocument(id) {
         return;
     }
 
+    document.getElementById('emitter-name').value = doc.emitterName || '';
     document.getElementById('debtor-name').value = doc.debtorName || '';
+    // Garante que a checagem é feita corretamente
+    document.getElementById('require-signature').checked = (doc.requireSignature !== undefined ? doc.requireSignature : true);
     
-    saveDebtorDetails(); 
-    loadDebtorDetails(); 
+    saveFormDetails(); // Persiste os novos detalhes do formulário (opcional)
+    loadFormDetails(); // Recarrega para refletir na currentFormDetails
 
     currentReceivableItems = doc.receivables || [];
     currentDiscountItems = doc.discounts || [];
@@ -359,7 +390,18 @@ function generateAndDownloadPDF(id) {
     pdf.text(`Data: ${formatDate(doc.dataCriacao)}`, margin + width, y, { align: 'right' });
     y += lineHeight;
 
-    // 2. Cliente/Devedor
+    // 2. Dados do Recebedor (Emissor)
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("DADOS DO RECEBEDOR (EMISSOR)", margin, y);
+    pdf.line(margin, y + 1, margin + width, y + 1);
+    y += lineHeight;
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Nome do Recebedor: ${doc.emitterName || 'N/I'}`, margin, y);
+    y += lineHeight * 1.5;
+
+    // 3. Dados do Devedor/Cliente
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
     pdf.text("DADOS DO DEVEDOR/CLIENTE", margin, y);
@@ -371,7 +413,7 @@ function generateAndDownloadPDF(id) {
     y += lineHeight * 2;
 
 
-    // 3. Função para desenhar a Tabela de Itens (Recebíveis ou Descontos)
+    // 4. Função para desenhar a Tabela de Itens (Recebíveis ou Descontos)
     const drawItemTable = (title, items, isDiscount, startY) => {
         let currentY = startY;
         
@@ -448,60 +490,74 @@ function generateAndDownloadPDF(id) {
         return currentY + lineHeight * 2;
     };
     
-    // 4. Desenha Tabela de Recebíveis
+    // 5. Desenha Tabela de Recebíveis
     y = drawItemTable("Recebíveis", doc.receivables, false, y);
     
-    // 5. Desenha Tabela de Descontos
+    // 6. Desenha Tabela de Descontos
     y = drawItemTable("Descontos", doc.discounts, true, y);
 
-    // 6. Resumo dos Totais (Final)
+    // 7. Resumo dos Totais (Final)
     if (y + 40 > 280) {
         pdf.addPage();
         y = 15; 
     }
     
     const totalsY = y;
+    const totalsBoxWidth = 70;
+    const totalsBoxX = margin + width - totalsBoxWidth;
     
     // Tabela de Totais
     pdf.setDrawColor(0, 0, 0);
     pdf.setLineWidth(0.2);
-    pdf.rect(margin + width - 70, totalsY, 70, 25);
-    
+    // Redesenha o retângulo para melhor precisão
+    pdf.rect(totalsBoxX, totalsY, totalsBoxWidth, 35); // Altura aumentada para 35
+
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
     
     // Total Recebíveis
-    pdf.text("TOTAL RECEBÍVEIS:", margin + width - 5, totalsY + 5, { align: 'right' });
-    pdf.text(formatCurrency(doc.receivablesTotal), margin + width - 5, totalsY + 10, { align: 'right' });
+    pdf.text("TOTAL RECEBÍVEIS:", totalsBoxX + 2, totalsY + 5);
+    pdf.text(formatCurrency(doc.receivablesTotal), totalsBoxX + totalsBoxWidth - 2, totalsY + 5, { align: 'right' });
     
     // Total Descontos
-    pdf.text("- TOTAL DESCONTOS:", margin + width - 5, totalsY + 15, { align: 'right' });
-    pdf.text(formatCurrency(doc.discountsTotal), margin + width - 5, totalsY + 20, { align: 'right' });
+    pdf.text("- TOTAL DESCONTOS:", totalsBoxX + 2, totalsY + 12);
+    pdf.text(formatCurrency(doc.discountsTotal), totalsBoxX + totalsBoxWidth - 2, totalsY + 12, { align: 'right' });
+
+    // Linha de separação
+    pdf.setLineWidth(0.4);
+    pdf.line(totalsBoxX + 2, totalsY + 14, totalsBoxX + totalsBoxWidth - 2, totalsY + 14);
 
     // Total Geral (Final)
-    pdf.setLineWidth(0.4);
-    pdf.line(margin + width - 68, totalsY + 21, margin + width - 2, totalsY + 21);
-
     pdf.setFontSize(12);
     pdf.setFont('helvetica', 'bold');
-    pdf.text("TOTAL GERAL:", margin + width - 5, totalsY + 26, { align: 'right' });
-    pdf.text(formatCurrency(doc.grandTotal), margin + width - 5, totalsY + 31, { align: 'right' });
-    
+    pdf.text("TOTAL GERAL:", totalsBoxX + 2, totalsY + 20);
+    pdf.text(formatCurrency(doc.grandTotal), totalsBoxX + totalsBoxWidth - 2, totalsY + 20, { align: 'right' });
+
+    // Linha de separação
+    pdf.setLineWidth(0.2);
+    pdf.line(totalsBoxX, totalsY + 22, totalsBoxX + totalsBoxWidth, totalsY + 22);
+
+    // Adicionando o nome do recebedor (emissor) para assinar
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Emissor: ${doc.emitterName || 'N/I'}`, totalsBoxX + 2, totalsY + 28);
+
     y = totalsY + 35;
 
 
-    // 7. Campo para Assinatura
-    const signatureY = Math.max(y + 10, 250); 
+    // 8. Campo para Assinatura (OPCIONAL)
+    if (doc.requireSignature) {
+        const signatureY = Math.max(y + 10, 250); 
 
-    // Linha de assinatura
-    pdf.setDrawColor(0, 0, 0);
-    pdf.setLineWidth(0.5);
-    pdf.line(margin + 50, signatureY, margin + width - 50, signatureY);
-    
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`Assinatura do Devedor/Cliente`, margin + width / 2, signatureY + 4, { align: 'center' });
-
+        // Linha de assinatura
+        pdf.setDrawColor(0, 0, 0);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin + 50, signatureY, margin + width - 50, signatureY);
+        
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`Assinatura do Devedor/Cliente`, margin + width / 2, signatureY + 4, { align: 'center' });
+    }
 
     pdf.save(`NOTA_RECEBIVEIS_${doc.id.substring(8)}.pdf`);
 }
